@@ -1,0 +1,8 @@
+/* Heading component styles */
+
+h1 {
+    color: #333;
+    font-family: Arial, sans-serif;
+    font-size: 2rem;
+    margin: 1rem 0;
+}

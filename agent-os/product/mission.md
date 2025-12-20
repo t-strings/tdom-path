@@ -1,5 +1,9 @@
 # Product Mission
 
+> **Note:** This mission describes the long-term vision for tdom-path. The current Phase 1 implementation provides a
+> simple `make_path()` function for resolving component static assets using `importlib.resources`. Future phases will
+> build toward this broader vision.
+
 ## Pitch
 
 tdom-path is a Python library that helps web developers building framework-portable themes and components manage static

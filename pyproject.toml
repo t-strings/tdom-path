@@ -1,8 +1,37 @@
 [project]
 name = "tdom-path"
 version = "0.1.0"
-description = "Add your description here"
+description = "pathlib-compatible path API for web URLs with IDE integration"
 requires-python = ">=3.14"
 dependencies = [
     "tdom>=0.1.13",
 ]
+
+[dependency-groups]
+dev = [
+    "coverage>=7.11.2",
+    "furo>=2024.8.6",
+    "myst-parser>=4.0.0",
+    "pytest>=8.4.2",
+    "pytest-cov>=4.1.0",
+    "pytest-freethreaded>=0.1.0",
+    "pytest-timeout>=2.4.0",
+    "pytest-xdist>=3.6.1",
+    "ruff>=0.13.2",
+    "sphinx>=8.0.0",
+    "sphinx-autobuild>=2024.9.3",
+    "ty>=0.0.4",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-p no:doctest"
+pythonpath = ["examples"]
+# Free-threading safety: timeout tests to detect hangs/deadlocks
+timeout = 60
+faulthandler_timeout = 120
+
+[build-system]
+requires = ["uv_build>=0.8.17,<0.9.0"]
+build-backend = "uv_build"

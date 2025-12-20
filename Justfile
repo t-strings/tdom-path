@@ -1,0 +1,102 @@
+# Requires: just, uv, Python 3.14t (free-threaded build)
+# All tasks use uv to ensure isolated, reproducible runs.
+
+# Default recipe shows help
+default:
+    @just --list
+
+# Print environment info
+info:
+    @echo "Python: $(python --version)"
+    @uv --version
+
+# Install project and dev dependencies
+install:
+    uv sync --all-groups
+
+# Alias for install (better discoverability)
+setup: install
+
+# Run tests (sequential)
+test *ARGS:
+    uv run pytest {{ ARGS }}
+
+# Run tests (parallel)
+test-parallel *ARGS:
+    uv run pytest -n auto {{ ARGS }}
+
+# Run tests with free-threading safety checks (parallel threads + iterations)
+test-freethreaded *ARGS:
+    uv run pytest --threads=8 --iterations=10 --require-gil-disabled {{ ARGS }}
+
+# Lint code (check for issues)
+lint *ARGS:
+    uv run ruff check {{ ARGS }} .
+
+# Format code (auto-format)
+fmt *ARGS:
+    uv run ruff format {{ ARGS }} .
+
+# Check formatting without modifying files (for CI)
+fmt-check *ARGS:
+    uv run ruff format --check {{ ARGS }} .
+
+# Lint and auto-fix
+lint-fix:
+    uv run ruff check --fix .
+
+# Type checking
+typecheck *ARGS:
+    PYTHONPATH=examples uv run ty check {{ ARGS }}
+
+# Build docs
+docs:
+    uv run sphinx-build -b html docs docs/_build/html
+
+# Build sdist/wheel
+build:
+    uv build
+
+# Clean build and cache artifacts
+clean:
+    rm -rf .pytest_cache .ruff_cache .pyright .mypy_cache build dist
+    find docs/_build -mindepth 1 -maxdepth 1 -not -name ".gitkeep" -exec rm -rf {} + || true
+
+# Run all quality checks with fail-fast behavior
+ci-checks:
+    just install && just lint && just fmt-check && just typecheck && just test-parallel
+
+# Run all checks + free-threading safety tests
+ci-checks-ft:
+    just ci-checks && just test-freethreaded
+
+# Enable pre-push hook to run ci-checks before pushing
+enable-pre-push:
+    @echo "Installing pre-push hook..."
+    @echo '#!/bin/sh' > .git/hooks/pre-push
+    @echo '' >> .git/hooks/pre-push
+    @echo '# Run quality checks before push' >> .git/hooks/pre-push
+    @echo 'echo "Running quality checks before push..."' >> .git/hooks/pre-push
+    @echo 'if ! just ci-checks; then' >> .git/hooks/pre-push
+    @echo '    echo "Pre-push check failed! Push aborted."' >> .git/hooks/pre-push
+    @echo '    exit 1' >> .git/hooks/pre-push
+    @echo 'fi' >> .git/hooks/pre-push
+    @chmod +x .git/hooks/pre-push
+    @echo "Pre-push hook installed! Use 'just disable-pre-push' to disable."
+
+# Disable pre-push hook
+disable-pre-push:
+    @chmod -x .git/hooks/pre-push 2>/dev/null || true
+    @echo "Pre-push hook disabled. Use 'just enable-pre-push' to re-enable."
+
+# Run performance benchmark
+benchmark:
+    uv run python -m aria_testing.profiling.benchmark
+
+# Profile query operations
+profile-queries:
+    uv run python -m aria_testing.profiling.profiler_queries
+
+# Profile test suite
+profile-tests:
+    uv run python -m aria_testing.profiling.profiler_tests
