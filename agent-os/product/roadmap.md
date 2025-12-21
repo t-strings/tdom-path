@@ -34,10 +34,10 @@
    PurePosixPath values to relative paths from current page to asset location. Support site prefix for SSG deployments.
    `S` **Complete**
 
-7. [ ] Asset Collection — In the pluggable implementation `RelativePathStrategy` implement a way to copy
+7. [x] Asset Collection — In the pluggable implementation `RelativePathStrategy` implement a way to copy
    collect Traversable asset instances that need to be copied to the output. Add `resolved_assets: set[Traversable]` (or
    whatever is the correct type). Then make sure a single instance of `ResolvedAsset` can be re-used for multiple
-   renderings. `M`
+   renderings. `M` **Complete**
 
 8. [ ] Measure Performance — Change the examples directory to use something much bigger from `../storyville/examples`
    and fix any tests to use it. Setup performance measurement and profiling using tests and pytest plugins to match how

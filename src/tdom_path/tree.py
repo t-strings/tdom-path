@@ -3,7 +3,7 @@
 import inspect
 import re
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import wraps
 from importlib.resources.abc import Traversable
 # Use PurePosixPath instead of PurePath to ensure cross-platform consistency
@@ -14,6 +14,38 @@ from typing import Any, ParamSpec, Protocol, TypeGuard
 
 from tdom import Element, Fragment, Node
 from tdom_path.webpath import make_path
+
+
+@dataclass(frozen=True, slots=True)
+class AssetReference:
+    """Reference to a collected asset with source and destination information.
+
+    This dataclass stores information about assets encountered during rendering,
+    enabling build tools to copy them to the output directory. The frozen and
+    slotted design ensures hashability for set-based deduplication.
+
+    Attributes:
+        source: Traversable instance for reading file contents via .read_bytes()
+        module_path: PurePosixPath representing the destination path in build output
+
+    Examples:
+        >>> from pathlib import PurePosixPath
+        >>> from tdom_path.webpath import make_path
+        >>> from mysite.components.heading import Heading
+        >>>
+        >>> # Create asset reference
+        >>> source = make_path(Heading, "static/styles.css")
+        >>> module_path = PurePosixPath("mysite/components/heading/static/styles.css")
+        >>> ref = AssetReference(source=source, module_path=module_path)
+        >>>
+        >>> # Use in build tool to copy asset
+        >>> content = ref.source.read_bytes()
+        >>> dest_path = build_dir / ref.module_path
+        >>> dest_path.write_bytes(content)
+    """
+
+    source: Traversable
+    module_path: PurePosixPath
 
 
 class _TraversableWithPath(Traversable):
@@ -410,7 +442,7 @@ class RenderStrategy(Protocol):
         ...
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class RelativePathStrategy:
     """Strategy for rendering paths as relative URLs.
 
@@ -424,9 +456,12 @@ class RelativePathStrategy:
     Uses PurePosixPath for all path calculations to ensure cross-platform
     consistency in web path generation.
 
-    Args:
+    Attributes:
         site_prefix: Optional PurePosixPath prefix to prepend to all calculated paths
                     (e.g., PurePosixPath("mysite/static") for subdirectory deployments)
+        collected_assets: Set of AssetReference instances for assets encountered during
+                         rendering. Build tools can iterate this set after rendering to
+                         copy assets to the output directory.
 
     Examples:
         >>> from pathlib import PurePosixPath
@@ -452,6 +487,7 @@ class RelativePathStrategy:
     """
 
     site_prefix: PurePosixPath | None = None
+    collected_assets: set[AssetReference] = field(default_factory=set)
 
     def calculate_path(self, source: Traversable, target: PurePosixPath) -> str:
         """Calculate relative path from target to source.
@@ -558,6 +594,21 @@ def _render_transform_node(
     new_attrs: dict[str, str | None] = {}
     for attr_name, attr_value in node.attrs.items():
         if isinstance(attr_value, Traversable):
+            # Collect asset if it's a _TraversableWithPath wrapper
+            # This happens BEFORE converting to string path
+            if isinstance(attr_value, _TraversableWithPath):
+                # Extract source Traversable and module path from wrapper
+                source = attr_value._traversable
+                module_path = attr_value._module_path
+
+                # Create AssetReference and add to strategy's collected_assets
+                asset_ref = AssetReference(source=source, module_path=module_path)
+
+                # Add to collected_assets set (deduplicates automatically)
+                # Only add if strategy has collected_assets attribute (e.g., RelativePathStrategy)
+                if hasattr(strategy, 'collected_assets'):
+                    strategy.collected_assets.add(asset_ref)  # type: ignore[attr-defined]
+
             # Calculate string path using strategy
             new_attrs[attr_name] = strategy.calculate_path(attr_value, target)
         else:
