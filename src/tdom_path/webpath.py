@@ -1,56 +1,52 @@
 """Component resource path utilities for web applications.
 
-This module provides utilities for resolving component static assets using
-importlib.resources for proper package data access.
+This module provides utilities for resolving component static assets as
+module-relative paths for web rendering.
 
 Design:
-- Uses importlib.resources.files() for package resource resolution
-- Returns Path object with filesystem operations (exists, read_text, etc.)
-- Works with installed packages, not just src/ development directories
-- Supports both development and production (wheels) environments
+- Converts Python module names to web paths (dots to slashes)
+- Returns PurePosixPath for cross-platform web path consistency
+- Stores paths relative to project structure (e.g., mysite/components/heading/static/styles.css)
+- Works with any Python component (class, function, etc.) that has __module__
 
-Integration with importlib.resources:
+Integration:
     from tdom_path import make_path
     from mysite.components.heading import Heading
 
-    # Get path to component's static asset
+    # Get module-relative path to component's static asset
     styles_path = make_path(Heading, "static/styles.css")
-    # Returns Path object to the actual file location with filesystem operations
+    # Returns: PurePosixPath('mysite/components/heading/static/styles.css')
 """
 
-from importlib.resources import files
-from importlib.resources.abc import Traversable
+from pathlib import PurePosixPath
 from typing import Any
 
 
-def make_path(component: Any, asset: str) -> Traversable:
-    """Create path to component asset using importlib.resources.
+def make_path(component: Any, asset: str) -> PurePosixPath:
+    """Create module-relative path to component asset.
 
-    Extracts the __module__ from the component and uses importlib.resources.files()
-    to resolve the package location, then joins the asset path.
+    Extracts the __module__ from the component, converts it to a path
+    (replacing dots with slashes), and joins the asset path.
 
-    This approach works with both development directories and installed packages (wheels),
-    making it suitable for production use. Returns a Traversable path object with
-    filesystem operations like .exists(), .read_text(), .is_file(), etc.
+    Returns a PurePosixPath representing the module-relative location,
+    suitable for web rendering.
 
     Examples:
         >>> from mysite.components.heading import Heading
         >>> # Get path to component's CSS file
         >>> css_path = make_path(Heading, "static/styles.css")
-        >>> # Returns Traversable path with filesystem operations
         >>> str(css_path)
-        '.../mysite/components/heading/static/styles.css'
-        >>> css_path.exists()
-        True
-        >>> css_path.read_text()
-        '/* CSS content */'
+        'mysite/components/heading/static/styles.css'
+        >>> # Use in HTML
+        >>> f'<link rel="stylesheet" href="{css_path}">'
+        '<link rel="stylesheet" href="mysite/components/heading/static/styles.css">'
 
     Args:
         component: Python object with __module__ attribute (class, function, etc.)
         asset: Relative path to the asset within the component package (e.g., "static/styles.css")
 
     Returns:
-        Traversable path object to the resolved asset location with filesystem operations
+        PurePosixPath representing the module-relative path to the asset
 
     Raises:
         TypeError: If component doesn't have __module__ attribute
@@ -68,8 +64,8 @@ def make_path(component: Any, asset: str) -> Traversable:
     if len(parts) >= 2 and parts[-1] == parts[-2]:
         module_name = ".".join(parts[:-1])
 
-    # Use importlib.resources.files() to get the package location
-    package_path = files(module_name)
+    # Convert module name to path (replace dots with slashes)
+    module_path = PurePosixPath(module_name.replace(".", "/"))
 
-    # Join the asset path and return the Traversable
-    return package_path / asset
+    # Join the asset path and return
+    return module_path / asset

@@ -8,49 +8,378 @@ Focus on core functionality:
 - Decorator support for function and class components
 """
 
-from importlib.resources.abc import Traversable
+from pathlib import PurePosixPath
 
-from tdom import Element, Text, html
+from aria_testing import get_by_tag_name, get_all_by_tag_name
+from tdom import Element, Fragment, Text, Comment, html
 from mysite.components.heading import Heading
 from tdom_path import make_path_nodes, path_nodes
-from tdom_path.tree import TraversableElement
+from tdom_path.tree import (
+    PathElement,
+    _walk_tree,
+    _should_process_href,
+    _transform_asset_element,
+    _render_transform_node,
+    render_path_nodes,
+    RelativePathStrategy,
+    RenderStrategy,
+)
 from tdom_path.webpath import make_path
 
 
-def _find_elements(node):
-    """Helper to find Element children, skipping Text nodes."""
-    return [child for child in node.children if isinstance(child, Element)]
+# ============================================================================
+# Helper Function Unit Tests
+# ============================================================================
 
 
-def _find_element_by_tag(node, tag):
-    """Recursively find first element with given tag."""
-    if isinstance(node, Element) and node.tag == tag:
+def test_should_process_href_with_local_paths():
+    """Test _should_process_href returns True for local paths."""
+    from tdom_path.tree import _should_process_href
+
+    # Local relative paths should be processed
+    assert _should_process_href("static/styles.css") is True
+    assert _should_process_href("./static/styles.css") is True
+    assert _should_process_href("../shared/styles.css") is True
+    assert _should_process_href("assets/images/logo.png") is True
+
+
+def test_should_process_href_with_external_urls():
+    """Test _should_process_href returns False for external URLs."""
+    from tdom_path.tree import _should_process_href
+
+    # External URLs should NOT be processed
+    assert _should_process_href("http://example.com/style.css") is False
+    assert _should_process_href("https://cdn.example.com/style.css") is False
+    assert _should_process_href("//cdn.example.com/style.css") is False
+    assert _should_process_href("HTTP://EXAMPLE.COM/STYLE.CSS") is False  # Case insensitive
+
+
+def test_should_process_href_with_special_schemes():
+    """Test _should_process_href returns False for special schemes."""
+    from tdom_path.tree import _should_process_href
+
+    # Special schemes should NOT be processed
+    assert _should_process_href("mailto:user@example.com") is False
+    assert _should_process_href("tel:+1234567890") is False
+    assert _should_process_href("data:image/png;base64,abc123") is False
+    assert _should_process_href("javascript:void(0)") is False
+    assert _should_process_href("#section") is False
+    assert _should_process_href("MAILTO:USER@EXAMPLE.COM") is False  # Case insensitive
+
+
+def test_should_process_href_with_empty_values():
+    """Test _should_process_href returns False for empty/None values."""
+    from tdom_path.tree import _should_process_href
+
+    # Empty or None values should NOT be processed
+    assert _should_process_href(None) is False
+    assert _should_process_href("") is False
+
+
+def test_should_process_href_with_non_string():
+    """Test _should_process_href returns False for non-string values."""
+    from tdom_path.tree import _should_process_href
+
+    # Non-string values should NOT be processed
+    assert _should_process_href(123) is False  # type: ignore
+    assert _should_process_href(PurePosixPath("static/style.css")) is False  # type: ignore
+
+
+def test_transform_asset_element_with_local_href():
+    """Test _transform_asset_element transforms local href to PurePosixPath."""
+    from tdom_path.tree import _transform_asset_element
+
+    elem = Element(
+        tag="link",
+        attrs={"rel": "stylesheet", "href": "static/styles.css"},
+        children=[]
+    )
+
+    result = _transform_asset_element(elem, "href", Heading)
+
+    # Should return PathElement with PurePosixPath href
+    assert isinstance(result, PathElement)
+    assert isinstance(result.attrs["href"], PurePosixPath)
+    assert str(result.attrs["href"]) == "mysite/components/heading/static/styles.css"
+    # Other attributes preserved
+    assert result.attrs["rel"] == "stylesheet"
+
+
+def test_transform_asset_element_with_external_href():
+    """Test _transform_asset_element leaves external URLs unchanged."""
+    from tdom_path.tree import _transform_asset_element
+
+    elem = Element(
+        tag="link",
+        attrs={"rel": "stylesheet", "href": "https://cdn.example.com/style.css"},
+        children=[]
+    )
+
+    result = _transform_asset_element(elem, "href", Heading)
+
+    # Should return original Element unchanged (not PathElement)
+    assert result is elem
+    assert isinstance(result, Element)
+    assert not isinstance(result, PathElement)
+    assert result.attrs["href"] == "https://cdn.example.com/style.css"
+
+
+def test_transform_asset_element_with_script_src():
+    """Test _transform_asset_element works with script src attribute."""
+    from tdom_path.tree import _transform_asset_element
+
+    elem = Element(
+        tag="script",
+        attrs={"src": "static/app.js", "defer": "true"},
+        children=[]
+    )
+
+    result = _transform_asset_element(elem, "src", Heading)
+
+    # Should return PathElement with PurePosixPath src
+    assert isinstance(result, PathElement)
+    assert isinstance(result.attrs["src"], PurePosixPath)
+    assert str(result.attrs["src"]) == "mysite/components/heading/static/app.js"
+    # Other attributes preserved
+    assert result.attrs["defer"] == "true"
+
+
+def test_transform_asset_element_with_missing_attribute():
+    """Test _transform_asset_element handles missing attribute gracefully."""
+    from tdom_path.tree import _transform_asset_element
+
+    # Link without href attribute
+    elem = Element(
+        tag="link",
+        attrs={"rel": "stylesheet"},
+        children=[]
+    )
+
+    result = _transform_asset_element(elem, "href", Heading)
+
+    # Should return original element unchanged
+    assert result is elem
+
+
+def test_transform_asset_element_preserves_children():
+    """Test _transform_asset_element preserves element children."""
+    from tdom_path.tree import _transform_asset_element
+
+    child_text = Text("Loading...")
+    elem = Element(
+        tag="script",
+        attrs={"src": "static/app.js"},
+        children=[child_text]
+    )
+
+    result = _transform_asset_element(elem, "src", Heading)
+
+    # Should preserve children
+    assert len(result.children) == 1
+    assert result.children[0] is child_text
+
+
+def test_render_transform_node_with_path_element():
+    """Test _render_transform_node transforms PathElement to Element."""
+    from tdom_path.tree import _render_transform_node
+
+    css_path = make_path(Heading, "static/styles.css")
+    strategy = RelativePathStrategy()
+    target = PurePosixPath("mysite/components/heading/index.html")
+
+    node = PathElement(
+        tag="link",
+        attrs={"rel": "stylesheet", "href": css_path},
+        children=[]
+    )
+
+    result = _render_transform_node(node, target, strategy)
+
+    # Should return Element (not PathElement)
+    assert isinstance(result, Element)
+    assert not isinstance(result, PathElement)
+    # PurePosixPath should be converted to string
+    assert isinstance(result.attrs["href"], str)
+    assert result.attrs["href"] == "static/styles.css"
+    # Other attributes preserved
+    assert result.attrs["rel"] == "stylesheet"
+
+
+def test_render_transform_node_with_regular_element():
+    """Test _render_transform_node leaves regular Element unchanged."""
+    from tdom_path.tree import _render_transform_node
+
+    strategy = RelativePathStrategy()
+    target = PurePosixPath("index.html")
+
+    node = Element(
+        tag="div",
+        attrs={"class": "container"},
+        children=[]
+    )
+
+    result = _render_transform_node(node, target, strategy)
+
+    # Should return same node unchanged
+    assert result is node
+
+
+def test_render_transform_node_with_path_element_no_paths():
+    """Test _render_transform_node leaves PathElement without PurePosixPath unchanged."""
+    from tdom_path.tree import _render_transform_node
+
+    strategy = RelativePathStrategy()
+    target = PurePosixPath("index.html")
+
+    # PathElement but no PurePosixPath attributes
+    node = PathElement(
+        tag="link",
+        attrs={"rel": "stylesheet", "href": "https://cdn.example.com/style.css"},
+        children=[]
+    )
+
+    result = _render_transform_node(node, target, strategy)
+
+    # Should return same node unchanged
+    assert result is node
+
+
+def test_render_transform_node_multiple_path_attrs():
+    """Test _render_transform_node transforms multiple PurePosixPath attributes."""
+    from tdom_path.tree import _render_transform_node
+
+    path1 = make_path(Heading, "static/file1.css")
+    path2 = make_path(Heading, "static/file2.js")
+    strategy = RelativePathStrategy()
+    target = PurePosixPath("mysite/pages/index.html")
+
+    node = PathElement(
+        tag="custom",
+        attrs={
+            "data-css": path1,
+            "data-js": path2,
+            "rel": "custom"
+        },
+        children=[]
+    )
+
+    result = _render_transform_node(node, target, strategy)
+
+    # Should transform both PurePosixPath attributes
+    assert isinstance(result, Element)
+    assert not isinstance(result, PathElement)
+    assert isinstance(result.attrs["data-css"], str)
+    assert isinstance(result.attrs["data-js"], str)
+    assert "components/heading/static/file1.css" in result.attrs["data-css"]
+    assert "components/heading/static/file2.js" in result.attrs["data-js"]
+    # String attribute preserved
+    assert result.attrs["rel"] == "custom"
+
+
+def test_render_transform_node_with_custom_strategy():
+    """Test _render_transform_node uses provided strategy."""
+    from tdom_path.tree import _render_transform_node
+
+    css_path = make_path(Heading, "static/styles.css")
+    strategy = RelativePathStrategy(site_prefix=PurePosixPath("mysite/static"))
+    target = PurePosixPath("index.html")
+
+    node = PathElement(
+        tag="link",
+        attrs={"rel": "stylesheet", "href": css_path},
+        children=[]
+    )
+
+    result = _render_transform_node(node, target, strategy)
+
+    # Should use custom strategy with site prefix
+    assert isinstance(result, Element)
+    assert isinstance(result.attrs["href"], str)
+    assert result.attrs["href"].startswith("mysite/static")
+
+
+# ============================================================================
+# _walk_tree() Helper Tests (Task Group 1)
+# ============================================================================
+
+
+def test_walk_tree_transformation_and_immutability():
+    """Test _walk_tree() applies transformations while preserving immutability."""
+    original = html(t"""
+        <div class="container">
+            <p id="test">Hello</p>
+            <>
+                <span>World</span>
+            </>
+        </div>
+    """)
+
+    # Transform function that modifies nested p elements
+    visited_tags = []
+    def modify_p(node):
+        if isinstance(node, Element):
+            visited_tags.append(node.tag)
+            if node.tag == "p":
+                return Element(tag="p", attrs={"id": "modified"}, children=node.children)
         return node
-    if hasattr(node, "children"):
-        for child in node.children:
-            result = _find_element_by_tag(child, tag)
-            if result:
-                return result
-    return None
+
+    result = _walk_tree(original, modify_p)
+
+    # Verify all Element tags were visited (basic traversal)
+    assert "div" in visited_tags
+    assert "p" in visited_tags
+    assert "span" in visited_tags
+
+    # Verify immutability - original should be unchanged
+    p_original = get_by_tag_name(original, "p")
+    assert p_original.attrs["id"] == "test"
+
+    # Verify transformation - result should have modified version
+    p_result = get_by_tag_name(result, "p")
+    assert p_result.attrs["id"] == "modified"
+
+    # Parent should be a new object (because child changed)
+    assert result is not original
+
+
+def test_walk_tree_optimization_unchanged():
+    """Test _walk_tree() returns same object when no transformations applied."""
+    tree = html(t"""
+        <div>
+            Hello
+            <!--comment-->
+            <p></p>
+        </div>
+    """)
+
+    # Identity transform - returns node unchanged
+    def identity(node):
+        return node
+
+    result = _walk_tree(tree, identity)
+
+    # Should return exact same object reference (optimization)
+    assert result is tree
 
 
 # ============================================================================
-# TraversableElement Class Tests (Task Group 1)
+# PathElement Class Tests (Task Group 1)
 # ============================================================================
 
 
-def test_traversable_element_instantiation_and_attrs():
-    """Test TraversableElement instantiation with mixed attr types."""
+def test_path_element_behavior():
+    """Test PathElement attributes, inheritance, and rendering."""
     import pytest
 
-    traversable_path = make_path(Heading, "static/styles.css")
+    css_path = make_path(Heading, "static/styles.css")
+    js_path = make_path(Heading, "static/script.js")
 
-    # Test with mixed attr types (str, Traversable, None)
-    elem = TraversableElement(
+    # Test mixed attr types (str, PurePosixPath, None)
+    elem = PathElement(
         tag="link",
         attrs={
             "rel": "stylesheet",
-            "href": traversable_path,
+            "href": css_path,
             "type": "text/css",
             "media": None
         },
@@ -58,70 +387,286 @@ def test_traversable_element_instantiation_and_attrs():
     )
 
     assert elem.tag == "link"
-    assert isinstance(elem.attrs["href"], Traversable)
+    assert isinstance(elem.attrs["href"], PurePosixPath)
+    assert elem.attrs["href"] == css_path
     assert isinstance(elem.attrs["rel"], str)
-    assert isinstance(elem.attrs["type"], str)
     assert elem.attrs["media"] is None
-    assert "static/styles.css" in str(elem.attrs["href"])
 
-    # Test inherited validation from Element
-    with pytest.raises(ValueError, match="Element tag cannot be empty"):
-        TraversableElement(tag="", attrs={}, children=[])
-
-
-def test_traversable_element_inheritance():
-    """Test TraversableElement properly inherits Element behavior."""
-    traversable_path = make_path(Heading, "static/styles.css")
-
-    elem = TraversableElement(
-        tag="link",
-        attrs={"href": traversable_path},
-        children=[]
-    )
-
-    # Verify it's an Element subclass
+    # Test Element inheritance and dataclass configuration
     assert isinstance(elem, Element)
+    assert not hasattr(elem, "__dict__")  # slots=True
 
-    # Verify dataclass(slots=True) configuration
-    assert not hasattr(elem, "__dict__")
-    assert hasattr(elem, "tag")
-    assert hasattr(elem, "attrs")
-    assert hasattr(elem, "children")
-
-    # Verify immutability pattern (creating new instances)
-    new_elem = TraversableElement(
-        tag="script",
-        attrs=elem.attrs,
-        children=elem.children
-    )
+    # Test immutability pattern
+    new_elem = PathElement(tag="script", attrs=elem.attrs, children=elem.children)
     assert new_elem.tag == "script"
     assert elem.tag == "link"  # Original unchanged
 
+    # Test validation from Element
+    with pytest.raises(ValueError, match="Element tag cannot be empty"):
+        PathElement(tag="", attrs={}, children=[])
 
-def test_traversable_element_rendering():
-    """Test TraversableElement HTML rendering with Traversable auto-conversion."""
-    traversable_path = make_path(Heading, "static/script.js")
 
-    # Test rendering with Traversable attr and children
-    elem = TraversableElement(
-        tag="script",
-        attrs={"src": traversable_path},
-        children=[Text("// comment")]
+# ============================================================================
+# RenderStrategy Protocol and RelativePathStrategy Tests (Task Group 2)
+# ============================================================================
+
+
+def test_relative_path_strategy_calculations():
+    """Test RelativePathStrategy calculates relative paths correctly across various scenarios."""
+    from tdom_path.tree import RelativePathStrategy
+
+    strategy = RelativePathStrategy()
+
+    # Same directory: mysite/components/heading/index.html -> mysite/components/heading/static/styles.css
+    source = make_path(Heading, "static/styles.css")
+    target = PurePosixPath("mysite/components/heading/index.html")
+    result = strategy.calculate_path(source, target)
+    assert result == "static/styles.css"
+
+    # Parent directory navigation: mysite/pages/about.html -> mysite/components/heading/static/styles.css
+    source = make_path(Heading, "static/styles.css")
+    target = PurePosixPath("mysite/pages/about.html")
+    result = strategy.calculate_path(source, target)
+    assert ".." in result  # Should use ../
+    assert "components/heading/static/styles.css" in result
+
+    # Nested paths: mysite/index.html -> mysite/components/heading/static/css/main.css
+    source = make_path(Heading, "static/css/main.css")
+    target = PurePosixPath("mysite/index.html")
+    result = strategy.calculate_path(source, target)
+    assert "components/heading/static/css/main.css" in result
+
+    # Same component directory: mysite/components/heading/index.html -> mysite/components/heading/styles.css
+    source = make_path(Heading, "styles.css")
+    target = PurePosixPath("mysite/components/heading/index.html")
+    result = strategy.calculate_path(source, target)
+    assert result == "styles.css"
+
+    # Cross directory: mysite/pages/docs/guide.html -> mysite/components/heading/assets/js/app.js
+    source = make_path(Heading, "assets/js/app.js")
+    target = PurePosixPath("mysite/pages/docs/guide.html")
+    result = strategy.calculate_path(source, target)
+    assert ".." in result
+    assert "components/heading/assets/js/app.js" in result
+
+
+def test_relative_path_strategy_with_site_prefix():
+    """Test RelativePathStrategy prepends site_prefix."""
+    from tdom_path.tree import RelativePathStrategy
+
+    strategy = RelativePathStrategy(site_prefix=PurePosixPath("mysite/static"))
+
+    source_path = make_path(Heading, "static/styles.css")
+    target = PurePosixPath("index.html")
+
+    result = strategy.calculate_path(source_path, target)
+
+    # Should start with the site prefix
+    assert result.startswith("mysite/static")
+
+
+# ============================================================================
+# render_path_nodes() Tests (Task Group 3)
+# ============================================================================
+
+
+def test_render_path_nodes_detection_and_transformation():
+    """Test render_path_nodes() detects PathElement and transforms to Element."""
+    # Create tree with PathElement containing PurePosixPath
+    css_path = make_path(Heading, "static/styles.css")
+    js_path = make_path(Heading, "static/app.js")
+
+    tree = Element(
+        tag="html",
+        attrs={},
+        children=[
+            Element(
+                tag="head",
+                attrs={},
+                children=[
+                    PathElement(
+                        tag="link",
+                        attrs={"rel": "stylesheet", "href": css_path},
+                        children=[]
+                    ),
+                    PathElement(
+                        tag="script",
+                        attrs={"src": js_path},
+                        children=[]
+                    )
+                ]
+            )
+        ]
     )
 
-    html_str = str(elem)
-    assert html_str.startswith("<script")
-    assert "static/script.js" in html_str
-    assert "// comment" in html_str
-    assert html_str.endswith("</script>")
+    target = PurePosixPath("mysite/pages/index.html")
+    result = render_path_nodes(tree, target)
 
-    # Test rendering with string attrs (no Traversable)
-    elem2 = TraversableElement(
-        tag="div",
-        attrs={"class": "container"},
+    # Verify PathElements transformed to regular Elements
+    head = get_by_tag_name(result, "head")
+    link = get_by_tag_name(head, "link")
+    script = get_by_tag_name(head, "script")
+
+    # Should be regular Element, not PathElement
+    assert isinstance(link, Element)
+    assert not isinstance(link, PathElement)
+    assert isinstance(script, Element)
+    assert not isinstance(script, PathElement)
+
+    # PurePosixPath attributes should be replaced with strings
+    assert isinstance(link.attrs["href"], str)
+    assert isinstance(script.attrs["src"], str)
+
+    # Verify relative path calculation
+    assert ".." in link.attrs["href"]
+    assert "components/heading/static/styles.css" in link.attrs["href"]
+    assert ".." in script.attrs["src"]
+    assert "components/heading/static/app.js" in script.attrs["src"]
+
+
+def test_render_path_nodes_with_default_strategy():
+    """Test render_path_nodes() uses default RelativePathStrategy."""
+    css_path = make_path(Heading, "static/styles.css")
+
+    tree = PathElement(
+        tag="link",
+        attrs={"rel": "stylesheet", "href": css_path},
         children=[]
     )
-    assert str(elem2) == '<div class="container"></div>'
+
+    target = PurePosixPath("mysite/components/heading/index.html")
+    result = render_path_nodes(tree, target)
+
+    # Should use relative path from same directory
+    assert isinstance(result, Element)
+    assert not isinstance(result, PathElement)
+    assert result.attrs["href"] == "static/styles.css"
+
+
+def test_render_path_nodes_with_custom_strategy():
+    """Test render_path_nodes() accepts custom strategy parameter."""
+    css_path = make_path(Heading, "static/styles.css")
+
+    tree = PathElement(
+        tag="link",
+        attrs={"rel": "stylesheet", "href": css_path},
+        children=[]
+    )
+
+    # Custom strategy with site prefix
+    strategy = RelativePathStrategy(site_prefix=PurePosixPath("mysite/static"))
+    target = PurePosixPath("index.html")
+    result = render_path_nodes(tree, target, strategy=strategy)
+
+    # Should use custom strategy with prefix
+    assert isinstance(result, Element)
+    assert isinstance(result.attrs["href"], str)
+    assert result.attrs["href"].startswith("mysite/static")
+
+
+def test_render_path_nodes_optimization_no_path_elements():
+    """Test render_path_nodes() returns same object when no PathElements."""
+    tree = Element(
+        tag="div",
+        attrs={},
+        children=[
+            Element(tag="p", attrs={}, children=[Text("Hello")]),
+            Text("World")
+        ]
+    )
+
+    target = PurePosixPath("index.html")
+    result = render_path_nodes(tree, target)
+
+    # Should return same object reference (optimization)
+    assert result is tree
+
+
+def test_render_path_nodes_mixed_tree():
+    """Test render_path_nodes() handles mixed Element and PathElement tree."""
+    css_path = make_path(Heading, "static/styles.css")
+
+    tree = Element(
+        tag="html",
+        attrs={},
+        children=[
+            Element(
+                tag="head",
+                attrs={},
+                children=[
+                    PathElement(
+                        tag="link",
+                        attrs={"rel": "stylesheet", "href": css_path},
+                        children=[]
+                    ),
+                    Element(
+                        tag="title",
+                        attrs={},
+                        children=[Text("Test Page")]
+                    )
+                ]
+            ),
+            Element(
+                tag="body",
+                attrs={"class": "main"},
+                children=[
+                    Element(tag="h1", attrs={}, children=[Text("Hello")])
+                ]
+            )
+        ]
+    )
+
+    target = PurePosixPath("mysite/pages/index.html")
+    result = render_path_nodes(tree, target)
+
+    # Verify link transformed
+    head = get_by_tag_name(result, "head")
+    link = get_by_tag_name(head, "link")
+    assert isinstance(link, Element)
+    assert not isinstance(link, PathElement)
+    assert isinstance(link.attrs["href"], str)
+
+    # Verify other elements unchanged
+    title = get_by_tag_name(head, "title")
+    assert isinstance(title.children[0], Text)
+    assert title.children[0].text == "Test Page"
+
+    body = get_by_tag_name(result, "body")
+    assert body.attrs["class"] == "main"
+
+    h1 = get_by_tag_name(body, "h1")
+    assert isinstance(h1.children[0], Text)
+    assert h1.children[0].text == "Hello"
+
+
+def test_render_path_nodes_multiple_path_attributes():
+    """Test render_path_nodes() processes ANY PurePosixPath attribute, not just href/src."""
+    # Create PathElement with multiple PurePosixPath attributes
+    path1 = make_path(Heading, "static/file1.css")
+    path2 = make_path(Heading, "static/file2.js")
+
+    tree = PathElement(
+        tag="custom",
+        attrs={
+            "data-style": path1,
+            "data-script": path2,
+            "rel": "custom"
+        },
+        children=[]
+    )
+
+    target = PurePosixPath("mysite/pages/index.html")
+    result = render_path_nodes(tree, target)
+
+    # Both PurePosixPath attributes should be transformed
+    assert isinstance(result, Element)
+    assert not isinstance(result, PathElement)
+    assert isinstance(result.attrs["data-style"], str)
+    assert isinstance(result.attrs["data-script"], str)
+    assert "components/heading/static/file1.css" in result.attrs["data-style"]
+    assert "components/heading/static/file2.js" in result.attrs["data-script"]
+    # String attribute preserved
+    assert result.attrs["rel"] == "custom"
 
 
 # ============================================================================
@@ -129,104 +674,18 @@ def test_traversable_element_rendering():
 # ============================================================================
 
 
-def test_tree_walker_creates_traversable_element_for_link_with_traversable():
-    """Test that link element with Traversable href creates TraversableElement."""
-    tree = html(t"""
-        <head>
-            <link rel="stylesheet" href="static/styles.css">
-        </head>
-    """)
-
-    new_tree = make_path_nodes(tree, Heading)
-
-    # Find the link element
-    link = _find_element_by_tag(new_tree, "link")
-
-    # Verify it's a TraversableElement (not just Element)
-    assert isinstance(link, TraversableElement)
-    assert isinstance(link.attrs["href"], Traversable)
-    assert "static/styles.css" in str(link.attrs["href"])
-
-
-def test_tree_walker_creates_traversable_element_for_script_with_traversable():
-    """Test that script element with Traversable src creates TraversableElement."""
-    tree = html(t"""
-        <head>
-            <script src="static/script.js"></script>
-        </head>
-    """)
-
-    new_tree = make_path_nodes(tree, Heading)
-
-    script = _find_element_by_tag(new_tree, "script")
-
-    # Verify it's a TraversableElement
-    assert isinstance(script, TraversableElement)
-    assert isinstance(script.attrs["src"], Traversable)
-    assert "static/script.js" in str(script.attrs["src"])
-
-
-def test_tree_walker_creates_element_for_link_with_string():
-    """Test that link element with string href creates Element (not TraversableElement)."""
-    tree = html(t"""
-        <head>
-            <link rel="stylesheet" href="https://cdn.example.com/style.css">
-        </head>
-    """)
-
-    new_tree = make_path_nodes(tree, Heading)
-
-    link = _find_element_by_tag(new_tree, "link")
-
-    # Should be regular Element since external URL wasn't transformed
-    assert isinstance(link, Element)
-    assert not isinstance(link, TraversableElement)
-    assert isinstance(link.attrs["href"], str)
-    assert link.attrs["href"] == "https://cdn.example.com/style.css"
-
-
-def test_tree_walker_mixed_tree_element_and_traversable_element():
-    """Test mixed tree with both Element and TraversableElement types."""
-    tree = html(t"""
-        <head>
-            <link rel="stylesheet" href="https://cdn.example.com/external.css">
-            <link rel="stylesheet" href="static/local.css">
-            <script src="static/script.js"></script>
-        </head>
-    """)
-
-    new_tree = make_path_nodes(tree, Heading)
-
-    head = _find_element_by_tag(new_tree, "head")
-    links = [child for child in head.children if isinstance(child, Element) and child.tag == "link"]
-    script = _find_element_by_tag(new_tree, "script")
-
-    # External link should be regular Element
-    external_link = links[0]
-    assert isinstance(external_link, Element)
-    assert not isinstance(external_link, TraversableElement)
-    assert isinstance(external_link.attrs["href"], str)
-
-    # Local link should be TraversableElement
-    local_link = links[1]
-    assert isinstance(local_link, TraversableElement)
-    assert isinstance(local_link.attrs["href"], Traversable)
-
-    # Script should be TraversableElement
-    assert isinstance(script, TraversableElement)
-    assert isinstance(script.attrs["src"], Traversable)
-
-
-def test_tree_walker_preserves_traversable_element_type_through_walking():
-    """Test TraversableElement type preserved through tree walking."""
+def test_tree_walker_element_type_creation():
+    """Test PathElement vs Element creation based on attribute transformations."""
     tree = html(t"""
         <html>
             <head>
-                <link rel="stylesheet" href="static/styles.css">
+                <link rel="stylesheet" href="https://cdn.example.com/external.css">
+                <link rel="stylesheet" href="static/local.css">
+                <script src="static/script.js"></script>
             </head>
             <body>
                 <div>
-                    <script src="static/script.js"></script>
+                    <p>Content</p>
                 </div>
             </body>
         </html>
@@ -234,21 +693,36 @@ def test_tree_walker_preserves_traversable_element_type_through_walking():
 
     new_tree = make_path_nodes(tree, Heading)
 
-    # Find elements at different depths
-    link = _find_element_by_tag(new_tree, "link")
-    script = _find_element_by_tag(new_tree, "script")
+    # External link should be regular Element (no transformation)
+    head = get_by_tag_name(new_tree, "head")
+    links = get_all_by_tag_name(head, "link")
+    external_link = links[0]
+    assert isinstance(external_link, Element)
+    assert not isinstance(external_link, PathElement)
+    assert isinstance(external_link.attrs["href"], str)
+    assert external_link.attrs["href"] == "https://cdn.example.com/external.css"
 
-    # Both should be TraversableElement
-    assert isinstance(link, TraversableElement)
-    assert isinstance(script, TraversableElement)
+    # Local link should be PathElement with full module-relative path
+    local_link = links[1]
+    assert isinstance(local_link, PathElement)
+    assert isinstance(local_link.attrs["href"], PurePosixPath)
+    assert str(local_link.attrs["href"]) == "mysite/components/heading/static/local.css"
 
-    # Parent elements should still be regular Element
-    head = _find_element_by_tag(new_tree, "head")
-    body = _find_element_by_tag(new_tree, "body")
+    # Script should be PathElement with full module-relative path
+    script = get_by_tag_name(new_tree, "script")
+    assert isinstance(script, PathElement)
+    assert isinstance(script.attrs["src"], PurePosixPath)
+    assert str(script.attrs["src"]) == "mysite/components/heading/static/script.js"
+
+    # Parent elements without asset transformations should be regular Elements
+    body = get_by_tag_name(new_tree, "body")
+    div = get_by_tag_name(body, "div")
     assert isinstance(head, Element)
-    assert not isinstance(head, TraversableElement)
+    assert not isinstance(head, PathElement)
     assert isinstance(body, Element)
-    assert not isinstance(body, TraversableElement)
+    assert not isinstance(body, PathElement)
+    assert isinstance(div, Element)
+    assert not isinstance(div, PathElement)
 
 
 # ============================================================================
@@ -257,7 +731,7 @@ def test_tree_walker_preserves_traversable_element_type_through_walking():
 
 
 def test_integration_end_to_end_rendering():
-    """Test end-to-end: TraversableElement creation and HTML rendering."""
+    """Test end-to-end: PathElement creation and HTML rendering."""
     tree = html(t"""
         <html>
             <head>
@@ -272,21 +746,23 @@ def test_integration_end_to_end_rendering():
 
     new_tree = make_path_nodes(tree, Heading)
 
-    # Verify TraversableElement instances created
-    link = _find_element_by_tag(new_tree, "link")
-    script = _find_element_by_tag(new_tree, "script")
-    assert isinstance(link, TraversableElement)
-    assert isinstance(script, TraversableElement)
+    # Verify PathElement instances created with full paths
+    link = get_by_tag_name(new_tree, "link")
+    script = get_by_tag_name(new_tree, "script")
+    assert isinstance(link, PathElement)
+    assert isinstance(script, PathElement)
+    assert str(link.attrs["href"]) == "mysite/components/heading/static/styles.css"
+    assert str(script.attrs["src"]) == "mysite/components/heading/static/app.js"
 
-    # Verify rendering with Traversable auto-conversion
+    # Verify rendering with PurePosixPath auto-conversion includes module paths
     html_output = str(new_tree)
-    assert "static/styles.css" in html_output
-    assert "static/app.js" in html_output
+    assert "mysite/components/heading/static/styles.css" in html_output
+    assert "mysite/components/heading/static/app.js" in html_output
     assert "<h1>Test Page</h1>" in html_output
 
 
 def test_integration_decorator_with_traversable_element():
-    """Test @path_nodes decorator creates TraversableElement instances."""
+    """Test @path_nodes decorator creates PathElement instances."""
 
     @path_nodes
     def test_component():
@@ -297,173 +773,63 @@ def test_integration_decorator_with_traversable_element():
         """)
 
     result = test_component()
-    link = _find_element_by_tag(result, "link")
+    link = get_by_tag_name(result, "link")
 
-    assert isinstance(link, TraversableElement)
-    assert isinstance(link.attrs["href"], Traversable)
+    assert isinstance(link, PathElement)
+    assert isinstance(link.attrs["href"], PurePosixPath)
+    # Verify full module-relative path includes test function's module
+    assert "static/styles.css" in str(link.attrs["href"])
 
 
 def test_integration_not_exported_from_main_module():
-    """Test that TraversableElement is NOT exposed in public API."""
+    """Test that PathElement is NOT exposed in public API."""
     import tdom_path
 
-    assert "TraversableElement" not in tdom_path.__all__
-    assert not hasattr(tdom_path, "TraversableElement")
+    assert "PathElement" not in tdom_path.__all__
+    assert not hasattr(tdom_path, "PathElement")
 
     # Verify it's only accessible from tree module
-    from tdom_path.tree import TraversableElement as TreeTraversableElement
-    assert TreeTraversableElement is not None
+    from tdom_path.tree import PathElement as TreePathElement
+    assert TreePathElement is not None
 
 
 # ============================================================================
-# Original Tree Rewriting Tests
+# make_path_nodes() URL Skipping Tests
 # ============================================================================
 
 
-def test_make_path_nodes_link_element():
-    """Test transformation of <link> tag with href."""
-    tree = html(t"""
-        <html>
-            <head>
-                <link rel="stylesheet" href="static/styles.css">
-            </head>
-        </html>
-    """)
-
-    new_tree = make_path_nodes(tree, Heading)
-
-    # Find the link element
-    link = _find_element_by_tag(new_tree, "link")
-
-    # Verify href is now Traversable
-    assert isinstance(link.attrs["href"], Traversable)
-    assert "static/styles.css" in str(link.attrs["href"])
-    assert link.attrs["rel"] == "stylesheet"
-
-
-def test_make_path_nodes_script_tag():
-    """Test transformation of <script> tag with src."""
-    tree = html(t"""
-        <html>
-            <head>
-                <script src="static/script.js"></script>
-            </head>
-        </html>
-    """)
-
-    new_tree = make_path_nodes(tree, Heading)
-
-    script = _find_element_by_tag(new_tree, "script")
-
-    assert isinstance(script.attrs["src"], Traversable)
-    assert "static/script.js" in str(script.attrs["src"])
-
-
-def test_make_path_nodes_external_urls():
-    """Test that external URLs are not transformed."""
+def test_make_path_nodes_url_skipping():
+    """Test that external URLs and special schemes are not transformed."""
     tree = html(t"""
         <head>
             <link rel="stylesheet" href="http://cdn.example.com/style.css">
             <link rel="stylesheet" href="https://cdn.example.com/style.css">
             <link rel="stylesheet" href="//cdn.example.com/style.css">
-        </head>
-    """)
-
-    new_tree = make_path_nodes(tree, Heading)
-
-    # Verify all hrefs remain as strings
-    head = _find_element_by_tag(new_tree, "head")
-    links = _find_elements(head)
-    for link in links:
-        assert isinstance(link.attrs["href"], str)
-        assert "cdn.example.com" in link.attrs["href"]
-
-
-def test_make_path_nodes_special_schemes():
-    """Test that special schemes are not transformed."""
-    tree = html(t"""
-        <head>
             <link rel="me" href="mailto:user@example.com">
             <link rel="me" href="tel:+1234567890">
             <link rel="icon" href="data:image/png;base64,abc123">
+            <link rel="canonical" href="#section">
             <script src="javascript:void(0)"></script>
         </head>
     """)
 
     new_tree = make_path_nodes(tree, Heading)
 
-    # Verify all remain as strings
-    head = _find_element_by_tag(new_tree, "head")
-    elements = _find_elements(head)
-    for elem in elements:
-        href_or_src = elem.attrs.get("href") or elem.attrs.get("src")
-        assert isinstance(href_or_src, str)
+    # All links and scripts should remain as strings (not transformed)
+    head = get_by_tag_name(new_tree, "head")
+    links = get_all_by_tag_name(head, "link")
+    scripts = get_all_by_tag_name(head, "script")
 
+    # Verify all are regular Elements (not PathElements)
+    for link in links:
+        assert isinstance(link, Element)
+        assert not isinstance(link, PathElement)
+        assert isinstance(link.attrs["href"], str)
 
-def test_make_path_nodes_anchor_only():
-    """Test that anchor-only links are not transformed."""
-    tree = html(t"""
-        <head>
-            <link rel="canonical" href="#section">
-        </head>
-    """)
-
-    new_tree = make_path_nodes(tree, Heading)
-
-    link = _find_element_by_tag(new_tree, "link")
-    assert isinstance(link.attrs["href"], str)
-    assert link.attrs["href"] == "#section"
-
-
-def test_make_path_nodes_mixed_assets():
-    """Test tree with both external and local assets."""
-    tree = html(t"""
-        <head>
-            <link rel="stylesheet" href="https://cdn.example.com/style.css">
-            <link rel="stylesheet" href="static/styles.css">
-        </head>
-    """)
-
-    new_tree = make_path_nodes(tree, Heading)
-
-    head = _find_element_by_tag(new_tree, "head")
-    links = _find_elements(head)
-
-    # External remains string
-    external_link = links[0]
-    assert isinstance(external_link.attrs["href"], str)
-    assert "cdn.example.com" in external_link.attrs["href"]
-
-    # Local becomes Traversable
-    local_link = links[1]
-    assert isinstance(local_link.attrs["href"], Traversable)
-    assert "static/styles.css" in str(local_link.attrs["href"])
-
-
-def test_make_path_nodes_nested_children():
-    """Test deep tree traversal with nested children."""
-    tree = html(t"""
-        <html>
-            <head>
-                <link rel="stylesheet" href="static/styles.css">
-            </head>
-            <body>
-                <div>
-                    <script src="static/script.js"></script>
-                </div>
-            </body>
-        </html>
-    """)
-
-    new_tree = make_path_nodes(tree, Heading)
-
-    # Find link in head
-    link = _find_element_by_tag(new_tree, "link")
-    assert isinstance(link.attrs["href"], Traversable)
-
-    # Find script in body > div
-    script = _find_element_by_tag(new_tree, "script")
-    assert isinstance(script.attrs["src"], Traversable)
+    for script in scripts:
+        assert isinstance(script, Element)
+        assert not isinstance(script, PathElement)
+        assert isinstance(script.attrs["src"], str)
 
 
 def test_make_path_nodes_preserves_other_attrs():
@@ -480,50 +846,62 @@ def test_make_path_nodes_preserves_other_attrs():
 
     new_tree = make_path_nodes(tree, Heading)
 
-    link = _find_element_by_tag(new_tree, "link")
-    assert isinstance(link.attrs["href"], Traversable)
+    link = get_by_tag_name(new_tree, "link")
+    # Verify href transformed to full module-relative path
+    assert isinstance(link.attrs["href"], PurePosixPath)
+    assert str(link.attrs["href"]) == "mysite/components/heading/static/styles.css"
+    # Verify all other attributes preserved
     assert link.attrs["rel"] == "stylesheet"
     assert link.attrs["type"] == "text/css"
     assert link.attrs["class"] == "main-styles"
     assert link.attrs["media"] == "screen"
 
 
-def test_path_nodes_decorator_class_component():
-    """Test @path_nodes decorator on class component __call__ method."""
-
-    class TestComponent:
-        @path_nodes
-        def __call__(self):
-            return html(t"""
-                <head>
-                    <link rel="stylesheet" href="static/styles.css">
-                </head>
-            """)
-
-    component = TestComponent()
-    result = component()
-
-    link = _find_element_by_tag(result, "link")
-    assert isinstance(link.attrs["href"], Traversable)
-    assert "static/styles.css" in str(link.attrs["href"])
+# ============================================================================
+# @path_nodes Decorator Tests
+# ============================================================================
 
 
-def test_path_nodes_decorator_function_component():
-    """Test @path_nodes decorator on function component."""
+def test_path_nodes_decorator_components():
+    """Test @path_nodes decorator on both function and class components."""
 
+    # Function component
     @path_nodes
-    def test_component():
+    def function_component():
         return html(t"""
             <head>
                 <link rel="stylesheet" href="static/styles.css">
             </head>
         """)
 
-    result = test_component()
+    # Class component with __call__
+    class ClassComponent:
+        @path_nodes
+        def __call__(self):
+            return html(t"""
+                <head>
+                    <script src="static/script.js"></script>
+                </head>
+            """)
 
-    link = _find_element_by_tag(result, "link")
-    assert isinstance(link.attrs["href"], Traversable)
+    # Test function component
+    func_result = function_component()
+    link = get_by_tag_name(func_result, "link")
+    assert isinstance(link, PathElement)
+    assert isinstance(link.attrs["href"], PurePosixPath)
+    # Verify full module-relative path includes test module
+    assert "test_tree" in str(link.attrs["href"])
     assert "static/styles.css" in str(link.attrs["href"])
+
+    # Test class component
+    component = ClassComponent()
+    class_result = component()
+    script = get_by_tag_name(class_result, "script")
+    assert isinstance(script, PathElement)
+    assert isinstance(script.attrs["src"], PurePosixPath)
+    # Verify full module-relative path includes test module
+    assert "test_tree" in str(script.attrs["src"])
+    assert "static/script.js" in str(script.attrs["src"])
 
 
 def test_make_path_nodes_unchanged_nodes():
@@ -542,8 +920,337 @@ def test_make_path_nodes_unchanged_nodes():
 
     # The tree should be identical since nothing changed
     # (Fragment might be recreated but inner elements should be same)
-    body = _find_element_by_tag(tree, "body")
-    new_body = _find_element_by_tag(new_tree, "body")
+    body = get_by_tag_name(tree, "body")
+    new_body = get_by_tag_name(new_tree, "body")
 
     # Body element should be the exact same object since it has no assets
     assert body is new_body
+
+
+# ============================================================================
+# Integration Tests (Task Group 4)
+# ============================================================================
+
+
+def test_integration_full_pipeline_make_to_render():
+    """Test end-to-end pipeline: make_path_nodes() -> render_path_nodes()."""
+    # Step 1: Create HTML with string asset paths
+    tree = html(t"""
+        <html>
+            <head>
+                <link rel="stylesheet" href="static/styles.css">
+                <script src="static/app.js"></script>
+            </head>
+            <body>
+                <h1>Welcome</h1>
+                <p>Test content</p>
+            </body>
+        </html>
+    """)
+
+    # Step 2: Transform string paths to PurePosixPath (make_path_nodes)
+    path_tree = make_path_nodes(tree, Heading)
+
+    # Verify PathElement nodes created
+    link = get_by_tag_name(path_tree, "link")
+    script = get_by_tag_name(path_tree, "script")
+    assert isinstance(link, PathElement)
+    assert isinstance(script, PathElement)
+    assert isinstance(link.attrs["href"], PurePosixPath)
+    assert isinstance(script.attrs["src"], PurePosixPath)
+
+    # Step 3: Render PathElement nodes to Element with relative strings (render_path_nodes)
+    target = PurePosixPath("mysite/pages/about.html")
+    rendered_tree = render_path_nodes(path_tree, target)
+
+    # Verify PathElements transformed to regular Elements
+    rendered_link = get_by_tag_name(rendered_tree, "link")
+    rendered_script = get_by_tag_name(rendered_tree, "script")
+    assert isinstance(rendered_link, Element)
+    assert not isinstance(rendered_link, PathElement)
+    assert isinstance(rendered_script, Element)
+    assert not isinstance(rendered_script, PathElement)
+
+    # Verify relative paths calculated correctly
+    assert isinstance(rendered_link.attrs["href"], str)
+    assert isinstance(rendered_script.attrs["src"], str)
+    assert ".." in rendered_link.attrs["href"]  # Should navigate up from pages/
+    assert "components/heading/static/styles.css" in rendered_link.attrs["href"]
+    assert ".." in rendered_script.attrs["src"]
+    assert "components/heading/static/app.js" in rendered_script.attrs["src"]
+
+    # Verify non-asset content preserved
+    h1 = get_by_tag_name(rendered_tree, "h1")
+    p = get_by_tag_name(rendered_tree, "p")
+    assert isinstance(h1.children[0], Text)
+    assert h1.children[0].text == "Welcome"
+    assert isinstance(p.children[0], Text)
+    assert p.children[0].text == "Test content"
+
+
+def test_integration_site_prefix_realistic_scenario():
+    """Test with site_prefix in realistic multi-page scenario."""
+    # Create component tree with assets
+    tree = html(t"""
+        <html>
+            <head>
+                <link rel="stylesheet" href="static/main.css">
+                <link rel="stylesheet" href="static/theme.css">
+                <script src="static/analytics.js"></script>
+            </head>
+            <body>
+                <nav>Navigation</nav>
+                <main>Main content</main>
+            </body>
+        </html>
+    """)
+
+    # Transform to PathElements
+    path_tree = make_path_nodes(tree, Heading)
+
+    # Render with site_prefix for deployment subdirectory
+    strategy = RelativePathStrategy(site_prefix=PurePosixPath("mysite/static"))
+    target = PurePosixPath("mysite/pages/docs/guide.html")
+    rendered_tree = render_path_nodes(path_tree, target, strategy=strategy)
+
+    # Verify all links use site_prefix
+    head = get_by_tag_name(rendered_tree, "head")
+    links = get_all_by_tag_name(head, "link")
+    scripts = get_all_by_tag_name(head, "script")
+
+    for link in links:
+        assert isinstance(link, Element)
+        assert not isinstance(link, PathElement)
+        assert isinstance(link.attrs["href"], str)
+        assert link.attrs["href"].startswith("mysite/static")
+
+    for script in scripts:
+        assert isinstance(script, Element)
+        assert not isinstance(script, PathElement)
+        assert isinstance(script.attrs["src"], str)
+        assert script.attrs["src"].startswith("mysite/static")
+
+
+def test_integration_multiple_pages_different_targets():
+    """Test rendering same tree for multiple pages with different target paths."""
+    # Create component tree once
+    tree = html(t"""
+        <html>
+            <head>
+                <link rel="stylesheet" href="static/styles.css">
+            </head>
+            <body>
+                <h1>Shared Component</h1>
+            </body>
+        </html>
+    """)
+
+    path_tree = make_path_nodes(tree, Heading)
+
+    # Render for different target pages
+    targets = [
+        PurePosixPath("mysite/index.html"),
+        PurePosixPath("mysite/pages/about.html"),
+        PurePosixPath("mysite/pages/docs/guide.html"),
+    ]
+
+    results = []
+    for target in targets:
+        rendered = render_path_nodes(path_tree, target)
+        link = get_by_tag_name(rendered, "link")
+        results.append(link.attrs["href"])
+
+    # Verify different relative paths for each target
+    assert results[0] == "components/heading/static/styles.css"  # From mysite/
+    assert ".." in results[1]  # From mysite/pages/
+    assert "components/heading/static/styles.css" in results[1]
+    assert "../.." in results[2] or ".." in results[2]  # From mysite/pages/docs/
+    assert "components/heading/static/styles.css" in results[2]
+
+    # Verify each result is unique
+    assert len(set(results)) == len(results)
+
+
+def test_integration_preservation_of_non_asset_elements():
+    """Test that non-asset elements are preserved through full pipeline."""
+    tree = html(t"""
+        <html>
+            <head>
+                <meta charset="utf-8">
+                <title>Test Page</title>
+                <link rel="stylesheet" href="static/styles.css">
+                <meta name="viewport" content="width=device-width">
+            </head>
+            <body>
+                <header>
+                    <h1>Header</h1>
+                    <nav>
+                        <a href="https://example.com">External</a>
+                        <a href="#section">Anchor</a>
+                    </nav>
+                </header>
+                <main>
+                    <p>Content with <strong>markup</strong></p>
+                    <img src="https://example.com/image.jpg" alt="External">
+                </main>
+                <footer>
+                    <!-- Comment preserved -->
+                    <p>Footer</p>
+                </footer>
+            </body>
+        </html>
+    """)
+
+    # Full pipeline
+    path_tree = make_path_nodes(tree, Heading)
+    target = PurePosixPath("mysite/pages/index.html")
+    rendered_tree = render_path_nodes(path_tree, target)
+
+    # Verify meta tags preserved
+    head = get_by_tag_name(rendered_tree, "head")
+    metas = get_all_by_tag_name(head, "meta")
+    assert len(metas) == 2
+    assert metas[0].attrs["charset"] == "utf-8"
+    assert metas[1].attrs["name"] == "viewport"
+
+    # Verify title preserved
+    title = get_by_tag_name(head, "title")
+    assert isinstance(title.children[0], Text)
+    assert title.children[0].text == "Test Page"
+
+    # Verify body structure preserved
+    body = get_by_tag_name(rendered_tree, "body")
+    header = get_by_tag_name(body, "header")
+    main = get_by_tag_name(body, "main")
+    footer = get_by_tag_name(body, "footer")
+
+    # Verify content preserved
+    h1 = get_by_tag_name(header, "h1")
+    assert isinstance(h1.children[0], Text)
+    assert h1.children[0].text == "Header"
+
+    # Verify external links unchanged
+    nav = get_by_tag_name(header, "nav")
+    anchors = get_all_by_tag_name(nav, "a")
+    assert anchors[0].attrs["href"] == "https://example.com"
+    assert anchors[1].attrs["href"] == "#section"
+
+    # Verify markup preserved
+    strong = get_by_tag_name(main, "strong")
+    assert isinstance(strong.children[0], Text)
+    assert strong.children[0].text == "markup"
+
+
+def test_integration_complex_nested_tree_structures():
+    """Test with complex nested tree structures containing PathElements."""
+    tree = html(t"""
+        <html>
+            <head>
+                <link rel="stylesheet" href="static/base.css">
+            </head>
+            <body>
+                <div class="outer">
+                    <div class="middle">
+                        <div class="inner">
+                            <section>
+                                <article>
+                                    <header>
+                                        <h1>Nested Content</h1>
+                                    </header>
+                                    <div class="content">
+                                        <p>Text</p>
+                                        <div class="widget">
+                                            <span>Widget</span>
+                                        </div>
+                                    </div>
+                                </article>
+                            </section>
+                        </div>
+                    </div>
+                </div>
+                <script src="static/nested.js"></script>
+            </body>
+        </html>
+    """)
+
+    # Full pipeline
+    path_tree = make_path_nodes(tree, Heading)
+    target = PurePosixPath("mysite/pages/nested/deep/page.html")
+    rendered_tree = render_path_nodes(path_tree, target)
+
+    # Verify assets transformed correctly at any depth
+    link = get_by_tag_name(rendered_tree, "link")
+    script = get_by_tag_name(rendered_tree, "script")
+    assert isinstance(link, Element)
+    assert isinstance(script, Element)
+    assert isinstance(link.attrs["href"], str)
+    assert isinstance(script.attrs["src"], str)
+
+    # Verify deep nesting structure preserved
+    outer = get_by_tag_name(rendered_tree, "div", attrs={"class": "outer"})
+    assert outer.attrs["class"] == "outer"
+    middle = get_by_tag_name(outer, "div", attrs={"class": "middle"})
+    assert middle.attrs["class"] == "middle"
+    inner = get_by_tag_name(middle, "div", attrs={"class": "inner"})
+    assert inner.attrs["class"] == "inner"
+
+    # Verify deeply nested content preserved
+    widget = None
+    for div in get_all_by_tag_name(rendered_tree, "div"):
+        if div.attrs.get("class") == "widget":
+            widget = div
+            break
+    assert widget is not None
+    span = get_by_tag_name(widget, "span")
+    assert isinstance(span.children[0], Text)
+    assert span.children[0].text == "Widget"
+
+
+def test_integration_edge_case_empty_and_text_only_trees():
+    """Test edge cases: empty tree and tree with only Text nodes."""
+    # Empty tree (just a div with no children)
+    empty_tree = Element(tag="div", attrs={}, children=[])
+    target = PurePosixPath("mysite/index.html")
+
+    # Should handle empty tree gracefully
+    path_tree = make_path_nodes(empty_tree, Heading)
+    rendered_tree = render_path_nodes(path_tree, target)
+    assert path_tree is empty_tree  # No changes, same object
+    assert rendered_tree is path_tree  # No PathElements, same object
+
+    # Text-only tree
+    text_tree = Element(
+        tag="div",
+        attrs={},
+        children=[
+            Text("Hello"),
+            Text(" "),
+            Text("World"),
+        ]
+    )
+
+    # Should handle text-only tree gracefully
+    path_tree2 = make_path_nodes(text_tree, Heading)
+    rendered_tree2 = render_path_nodes(path_tree2, target)
+    assert path_tree2 is text_tree  # No changes, same object
+    assert rendered_tree2 is path_tree2  # No PathElements, same object
+
+    # Verify text content preserved
+    assert isinstance(rendered_tree2.children[0], Text)
+    assert rendered_tree2.children[0].text == "Hello"
+    assert isinstance(rendered_tree2.children[1], Text)
+    assert rendered_tree2.children[1].text == " "
+    assert isinstance(rendered_tree2.children[2], Text)
+    assert rendered_tree2.children[2].text == "World"
+
+    # Fragment with only Text and Comment nodes
+    fragment_tree = Fragment(children=[
+        Text("Start"),
+        Comment("Comment here"),
+        Text("End"),
+    ])
+
+    path_tree3 = make_path_nodes(fragment_tree, Heading)
+    rendered_tree3 = render_path_nodes(path_tree3, target)
+    assert path_tree3 is fragment_tree  # No changes
+    assert rendered_tree3 is path_tree3  # No PathElements

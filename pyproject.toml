@@ -9,6 +9,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "aria-testing>=0.1.2",
     "coverage>=7.11.2",
     "furo>=2024.8.6",
     "myst-parser>=4.0.0",

@@ -1,13 +1,12 @@
-"""Tests for make_path function with importlib.resources integration.
+"""Tests for make_path function for module-relative web paths.
 
 These tests focus on make_path functionality:
-- Resolving component package locations using importlib.resources
-- Creating paths to static assets (CSS, JS, images)
-- Working with actual package resources
-- Filesystem operations on returned paths
+- Converting Python module names to web paths
+- Creating module-relative paths to static assets (CSS, JS, images)
+- Returning PurePosixPath for cross-platform consistency
 """
 
-from importlib.resources.abc import Traversable
+from pathlib import PurePosixPath
 
 from mysite.components.heading import Heading
 from tdom_path import make_path
@@ -18,34 +17,27 @@ def test_make_path_basic():
     # Create path to static CSS file
     css_path = make_path(Heading, "static/styles.css")
 
-    # Should return a Traversable (path-like object)
-    assert isinstance(css_path, Traversable)
+    # Should return a PurePosixPath (path object for web paths)
+    assert isinstance(css_path, PurePosixPath)
 
-    # Path should contain the component package structure and asset
+    # Path should be module-relative
     path_str = str(css_path)
-    assert "mysite/components/heading/static/styles.css" in path_str
+    assert path_str == "mysite/components/heading/static/styles.css"
 
 
-def test_make_path_file_exists():
-    """Test that make_path resolves to actual existing file with filesystem operations."""
+def test_make_path_module_structure():
+    """Test that make_path returns module-relative paths."""
     # Create path to the CSS file
     css_path = make_path(Heading, "static/styles.css")
 
-    # Verify the path points to an actual file
-    # Note: In development, this uses the examples directory
-    # In production (wheel), it would use installed package location
+    # Verify the path is module-relative (not filesystem absolute)
     assert "styles.css" in str(css_path)
+    assert "mysite/components/heading" in str(css_path)
 
-    # Test filesystem operations
-    assert css_path.is_file()
-    assert not css_path.is_dir()
+    # Path should use forward slashes (PurePosixPath)
+    assert "/" in str(css_path)
+    assert "\\" not in str(css_path)
 
-    # Can read the file content
-    content = css_path.read_text()
-    assert "h1" in content
-
-
-def test_make_path_component_instance():
     """Test make_path works with component instance."""
     # Create component instance
     heading = Heading("Test Heading")
@@ -53,8 +45,9 @@ def test_make_path_component_instance():
     # make_path should work with instance (extracts __module__ from class)
     css_path = make_path(heading, "static/styles.css")
 
-    assert isinstance(css_path, Traversable)
+    assert isinstance(css_path, PurePosixPath)
     assert "static/styles.css" in str(css_path)
+    assert str(css_path) == "mysite/components/heading/static/styles.css"
 
 
 def test_make_path_different_assets():

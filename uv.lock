@@ -36,6 +36,18 @@ wheels = [
 ]
 
 [[package]]
+name = "aria-testing"
+version = "0.1.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "tdom" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5d/71/8f86fe4fbdabffb5d7858a72782e41b81d627ccba8ab6c5acdf70906bf88/aria_testing-0.1.2.tar.gz", hash = "sha256:63714931ce5cb278b9808c7bb0a1d0a186ca96fa92d55a953655068e48910d2f", size = 22334, upload-time = "2025-12-11T01:40:46.488Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1f/7a/9957519dfff1e7d7d7a2b71ef1988984cb97f9ec02a66d5bed0772afdb15/aria_testing-0.1.2-py3-none-any.whl", hash = "sha256:1745351eb0c87f8d1b3acdcfa0cabe7c7ceee11be05d71a784cfb41a1fe870bd", size = 28664, upload-time = "2025-12-11T01:40:45.215Z" },
+]
+
+[[package]]
 name = "babel"
 version = "2.17.0"
 source = { registry = "https://pypi.org/simple" }
@@ -654,6 +666,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "aria-testing" },
     { name = "coverage" },
     { name = "furo" },
     { name = "myst-parser" },
@@ -673,6 +686,7 @@ requires-dist = [{ name = "tdom", specifier = ">=0.1.13" }]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "aria-testing", specifier = ">=0.1.2" },
     { name = "coverage", specifier = ">=7.11.2" },
     { name = "furo", specifier = ">=2024.8.6" },
     { name = "myst-parser", specifier = ">=4.0.0" },

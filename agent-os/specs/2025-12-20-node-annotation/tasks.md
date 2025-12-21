@@ -5,7 +5,7 @@
 **Status:** Complete
 
 Total Task Groups: 1 (focused implementation)
-Focus: Tree rewriting function that detects asset elements and converts attrs to Traversable
+Focus: Tree rewriting function that detects asset elements and converts attrs to PurePosixPath
 
 ## Task Group 1: Tree Rewriting Implementation
 
@@ -155,7 +155,7 @@ Focus: Tree rewriting function that detects asset elements and converts attrs to
 
 **Acceptance Criteria:** ✓ Complete
 - All 12 tests written and pass
-- Tests use real Traversable objects
+- Tests use real PurePosixPath objects
 - Tests verify immutability (original tree unchanged)
 - 96% coverage of tree.py code (excellent coverage)
 
@@ -241,7 +241,7 @@ Focus: Tree rewriting function that detects asset elements and converts attrs to
 - ✅ Tree walking follows tdom-sphinx pattern
 - ✅ Detects <link> anywhere in tree (not just in head)
 - ✅ Detects <script> anywhere in tree
-- ✅ Converts attrs to Traversable using make_path()
+- ✅ Converts attrs to PurePosixPath using make_path()
 - ✅ Skips external URLs and special schemes
 - ✅ Immutable transformation (new tree created)
 - ✅ All 12 tests pass
@@ -255,7 +255,7 @@ Focus: Tree rewriting function that detects asset elements and converts attrs to
 **Immutability:**
 - ✓ Always creates new Element instances
 - ✓ Never mutates original tree or attrs dicts
-- ✓ Uses `dict()` to create new dicts that accept Traversable values
+- ✓ Uses `dict()` to create new dicts that accept PurePosixPath values
 - ✓ Returns new tree structure
 
 **Tree Walking Pattern:**
@@ -300,8 +300,8 @@ Focus: Tree rewriting function that detects asset elements and converts attrs to
 
 ## Future Enhancements
 
-**Phase 3: Render Traversable to strings**
-- Add rendering function that converts Traversable back to strings
+**Phase 3: Render PurePosixPath to strings**
+- Add rendering function that converts PurePosixPath back to strings
 - Support different rendering strategies
 - Context-based path resolution
 

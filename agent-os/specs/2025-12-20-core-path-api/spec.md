@@ -18,7 +18,7 @@ with both development directories and installed packages (wheels).
 - Single function `make_path(component, asset)` for all use cases
 - Takes a component object (class, instance, any object with `__module__`)
 - Takes an asset path string (e.g., `"static/styles.css"`)
-- Returns `Traversable` object from `importlib.resources`
+- Returns `PurePosixPath` object from `importlib.resources`
 - No class-based API, no complex abstractions
 
 **Component Module Extraction**
@@ -31,13 +31,13 @@ with both development directories and installed packages (wheels).
 **Package Resource Integration**
 
 - Uses `importlib.resources.files()` for package resolution
-- Returns `Traversable` objects with filesystem operations
+- Returns `PurePosixPath` objects with filesystem operations
 - Works with installed packages (wheels, zip files) not just src/ development
 - Cross-platform compatible (Windows, Unix)
 
 **Filesystem Operations**
 
-- Returned `Traversable` supports:
+- Returned `PurePosixPath` supports:
     - `.exists()` - Check if file/directory exists
     - `.is_file()` - Check if it's a file
     - `.is_dir()` - Check if it's a directory
@@ -47,7 +47,7 @@ with both development directories and installed packages (wheels).
 
 **Type Hints and IDE Integration**
 
-- Return type: `Traversable` from `importlib.resources.abc`
+- Return type: `PurePosixPath` from `importlib.resources.abc`
 - Comprehensive type hints on all parameters
 - Support ty type checker (Python 3.14+)
 - No need for `from __future__ import annotations`
@@ -72,7 +72,7 @@ with both development directories and installed packages (wheels).
 
 **Return Type Choice**
 
-- Return `Traversable` directly (not `PurePosixPath`)
+- Return `PurePosixPath` directly (not `PurePosixPath`)
 - Preserves filesystem operations that `importlib.resources` provides
 - More capabilities than `PurePosixPath` which is path-manipulation only
 

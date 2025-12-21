@@ -3,7 +3,7 @@
 ## Goal
 
 Create a `make_path_nodes()` function that walks a tdom Node tree, detects elements with static asset references (
-`<link>` and `<script>` tags), and converts their `href`/`src` attribute values from strings to `Traversable` objects
+`<link>` and `<script>` tags), and converts their `href`/`src` attribute values from strings to `PurePosixPath` objects
 using `make_path()`. Provide both a function and decorator version for easy component integration.
 
 ## User Stories
@@ -26,8 +26,8 @@ using `make_path()`. Provide both a function and decorator version for easy comp
 - Detect `<script>` tags with `src` attribute (anywhere in tree)
 - For each detected element:
     - Extract the attribute value (href or src)
-    - Call `make_path(component, attr_value)` to get Traversable
-    - Create new Element with Traversable as attribute value
+    - Call `make_path(component, attr_value)` to get PurePosixPath
+    - Create new Element with PurePosixPath as attribute value
     - Preserve all other attributes unchanged
 - Return a new Node tree with updated elements (immutable transformation)
 - Skip external URLs (http://, https://, //, etc.)
@@ -43,7 +43,7 @@ using `make_path()`. Provide both a function and decorator version for easy comp
 - Wraps the decorated function/method to process returned Node tree
 - Usage: Add `@path_nodes` above function component or class method
 - Only works with functions/methods that return Node (not str)
-- Returns transformed Node with Traversable attributes
+- Returns transformed Node with PurePosixPath attributes
 
 **Tree Walking Logic**
 
@@ -75,7 +75,7 @@ using `make_path()`. Provide both a function and decorator version for easy comp
 **Type Safety**
 
 - Import `Node`, `Element` from tdom
-- Import `Traversable` from importlib.resources.abc
+- Import `PurePosixPath` from importlib.resources.abc
 - Type hint for component: `Any` (matches make_path)
 - Return type: `Node`
 - Works with ty type checker
@@ -124,7 +124,7 @@ using `make_path()`. Provide both a function and decorator version for easy comp
 
 from typing import Any
 
-from importlib.resources.abc import Traversable
+from importlib.resources.abc import PurePosixPath
 from tdom import Element, Node
 
 from tdom_path.webpath import make_path
@@ -152,12 +152,12 @@ def _should_process_href(href: str) -> bool:
 
 
 def _transform_link_element(element: Element, component: Any) -> Element:
-    """Transform <link> element's href to Traversable."""
+    """Transform <link> element's href to PurePosixPath."""
     attrs = element.attrs.copy()
     href = attrs.get("href")
 
     if _should_process_href(href):
-        # Convert href to Traversable using make_path
+        # Convert href to PurePosixPath using make_path
         attrs["href"] = make_path(component, href)
 
     return Element(
@@ -168,12 +168,12 @@ def _transform_link_element(element: Element, component: Any) -> Element:
 
 
 def _transform_script_element(element: Element, component: Any) -> Element:
-    """Transform <script> element's src to Traversable."""
+    """Transform <script> element's src to PurePosixPath."""
     attrs = element.attrs.copy()
     src = attrs.get("src")
 
     if _should_process_href(src):
-        # Convert src to Traversable using make_path
+        # Convert src to PurePosixPath using make_path
         attrs["src"] = make_path(component, src)
 
     return Element(
@@ -191,7 +191,7 @@ def make_path_nodes(target: Node, component: Any) -> Node:
     - <script> tags with src attributes
 
     For each detected element, converts the href/src string attribute to a
-    Traversable using make_path(component, attr_value).
+    PurePosixPath using make_path(component, attr_value).
 
     External URLs (http://, https://, //), special schemes (mailto:, tel:,
     data:, javascript:), and anchor-only links (#...) are left unchanged.
@@ -201,7 +201,7 @@ def make_path_nodes(target: Node, component: Any) -> Node:
         component: Component instance/class for make_path() resolution
 
     Returns:
-        New Node tree with asset attributes converted to Traversable
+        New Node tree with asset attributes converted to PurePosixPath
 
     Examples:
         >>> from tdom import Element, Text
@@ -211,9 +211,9 @@ def make_path_nodes(target: Node, component: Any) -> Node:
         >>> link = Element("link", {"rel": "stylesheet", "href": "static/styles.css"})
         >>> tree = Element("head", children=[link])
         >>>
-        >>> # Transform to use Traversable
+        >>> # Transform to use PurePosixPath
         >>> new_tree = make_path_nodes(tree, Heading)
-        >>> # new_tree now has Traversable in link's href
+        >>> # new_tree now has PurePosixPath in link's href
     """
 
     def walk(node: Node) -> Node:
@@ -335,7 +335,7 @@ class Heading:
         body = Element("body", children=[h1])
         html = Element("html", children=[head, body])
 
-        # Transform tree to use Traversable
+        # Transform tree to use PurePosixPath
         return make_path_nodes(html, self)
 ```
 
@@ -373,7 +373,7 @@ class Page:
                 "rel": "stylesheet",
                 "href": "https://cdn.example.com/style.css"
             }),
-            # Local CSS - transformed to Traversable
+            # Local CSS - transformed to PurePosixPath
             Element("link", {
                 "rel": "stylesheet",
                 "href": "static/styles.css"
@@ -385,7 +385,7 @@ class Page:
 
 **Not Included in This Phase:**
 
-- Converting Traversable back to strings for final HTML output (that's later phases)
+- Converting PurePosixPath back to strings for final HTML output (that's later phases)
 - Relative path calculation
 - Path rewriting strategies
 - Context-based resolution
@@ -396,7 +396,7 @@ class Page:
 
 **Future Phases Will Add:**
 
-- Phase 3: Convert Traversable to strings during final rendering
+- Phase 3: Convert PurePosixPath to strings during final rendering
 - Phase 4: Relative path calculation based on render target
 - Phase 5: Process `<img>` and `<a>` tags
 - Phase 6: Context-based resolution strategies
@@ -426,7 +426,7 @@ class Page:
 - ✓ Tree walking follows tdom-sphinx pattern
 - ✓ Detects <link> anywhere in tree (not just in head)
 - ✓ Detects <script> anywhere in tree
-- ✓ Converts href/src to Traversable using make_path()
+- ✓ Converts href/src to PurePosixPath using make_path()
 - ✓ Skips external URLs and special schemes
 - ✓ Immutable transformation (creates new tree)
 - ✓ All 12 tests pass
@@ -438,14 +438,14 @@ class Page:
 
 **Phase 1 (make_path):**
 
-- make_path_nodes calls make_path() to get Traversable
-- Seamless integration: tree walking → make_path → Traversable
+- make_path_nodes calls make_path() to get PurePosixPath
+- Seamless integration: tree walking → make_path → PurePosixPath
 
 **Future Phase 3 (Element Rendering):**
 
-- Override Element.__str__() to convert Traversable to strings
+- Override Element.__str__() to convert PurePosixPath to strings
 - Or provide custom rendering function
-- make_path_nodes creates tree with Traversable, Phase 3 renders it
+- make_path_nodes creates tree with PurePosixPath, Phase 3 renders it
 
 **Future Phase 4 (Relative Paths):**
 
