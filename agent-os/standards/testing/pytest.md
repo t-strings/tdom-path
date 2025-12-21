@@ -15,3 +15,12 @@
 - But try to keep coverage at 100% as part of final verification
 - Prefer unit tests but where needed write
 
+## Free threading
+
+Add the following to pytest options in `pyproject.toml`:
+
+```
+# Free-threading safety: timeout tests to detect hangs/deadlocks
+timeout = 60
+faulthandler_timeout = 120
+```
