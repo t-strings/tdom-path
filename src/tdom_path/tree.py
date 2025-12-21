@@ -3,7 +3,9 @@
 import inspect
 import re
 from collections.abc import Callable
+from dataclasses import dataclass
 from functools import wraps
+from importlib.resources.abc import Traversable
 from typing import Any, ParamSpec, TypeGuard
 
 from tdom import Element, Fragment, Node
@@ -17,6 +19,42 @@ type R = Node
 _EXTERNAL_URL_PATTERN = re.compile(
     r"^(https?://|//|mailto:|tel:|data:|javascript:|#)", re.IGNORECASE
 )
+
+
+@dataclass(slots=True)
+class TraversableElement(Element):
+    """Element subclass that allows Traversable attribute values.
+
+    This class extends Element to support Traversable instances in attribute
+    values, enabling the tree walker to preserve type information for component
+    asset paths through the rendering pipeline.
+
+    The attrs field accepts str, Traversable, or None values. During rendering,
+    Traversable values are automatically converted to strings via __str__() and
+    __fspath__(), producing filesystem path strings in the final HTML output.
+
+    All other behavior is inherited from Element, including __post_init__
+    validation and __str__() rendering.
+
+    Examples:
+        >>> from importlib.resources.abc import Traversable
+        >>> from tdom_path.webpath import make_path
+        >>> from mysite.components.heading import Heading
+        >>>
+        >>> # Create element with Traversable href
+        >>> path = make_path(Heading, "static/styles.css")
+        >>> elem = TraversableElement(
+        ...     tag="link",
+        ...     attrs={"rel": "stylesheet", "href": path},
+        ...     children=[]
+        ... )
+        >>>
+        >>> # Renders to HTML with path auto-converted
+        >>> str(elem)
+        '<link rel="stylesheet" href="/path/to/static/styles.css" />'
+    """
+
+    attrs: dict[str, str | Traversable | None]
 
 
 def _should_process_href(href: str | None) -> TypeGuard[str]:
@@ -36,7 +74,7 @@ def _should_process_href(href: str | None) -> TypeGuard[str]:
 
 def _transform_asset_element(
     element: Element, attr_name: str, component: Any
-) -> Element:
+) -> Element | TraversableElement:
     """Transform element's asset attribute to Traversable.
 
     Args:
@@ -45,7 +83,7 @@ def _transform_asset_element(
         component: Component instance/class for make_path() resolution
 
     Returns:
-        New Element with asset attribute transformed to Traversable
+        New Element or TraversableElement with asset attribute transformed to Traversable
     """
     attr_value = element.attrs.get(attr_name)
 
@@ -60,11 +98,21 @@ def _transform_asset_element(
     attrs = dict[str, Any](element.attrs)
     attrs[attr_name] = make_path(component, attr_value)
 
-    return Element(
-        tag=element.tag,
-        attrs=attrs,
-        children=element.children,
-    )
+    # Check if any attr value is Traversable - if so, use TraversableElement
+    has_traversable = any(isinstance(v, Traversable) for v in attrs.values())
+
+    if has_traversable:
+        return TraversableElement(
+            tag=element.tag,
+            attrs=attrs,
+            children=element.children,
+        )
+    else:
+        return Element(
+            tag=element.tag,
+            attrs=attrs,
+            children=element.children,
+        )
 
 
 def make_path_nodes(target: Node, component: Any) -> Node:
