@@ -2,13 +2,13 @@
 
 ## Goal
 
-Create a `render_path_nodes()` function that walks a tdom tree, detects `PathElement` nodes with `PurePosixPath`
+Create a `render_path_nodes()` function that walks a tdom tree, detects `TraversableElement` nodes with `PurePosixPath`
 attribute values, and transforms them into regular `Element` nodes with relative path strings calculated based on a
 target path.
 
 ## User Stories
 
-- As a static site generator, I want to transform `PathElement` nodes containing `PurePosixPath` paths into regular
+- As a static site generator, I want to transform `TraversableElement` nodes containing `PurePosixPath` paths into regular
   `Element` nodes with relative path strings so that the HTML output contains correct relative links between pages
 - As a developer, I want a flexible strategy pattern for path rendering so that I can customize how paths are calculated
   for different deployment scenarios (relative paths, absolute paths, CDN URLs, etc.)
@@ -25,16 +25,16 @@ target path.
 - Returns a new immutable Node tree with transformations applied
 - Optimizes to return the same object reference when no transformations are needed
 
-**PathElement Detection**
+**TraversableElement Detection**
 
-- Use `isinstance(node, PathElement)` to detect elements that may contain PurePosixPath paths
-- Inspect all attributes of detected `PathElement` nodes
+- Use `isinstance(node, TraversableElement)` to detect elements that may contain PurePosixPath paths
+- Inspect all attributes of detected `TraversableElement` nodes
 - Check each attribute value using `isinstance(value, PurePosixPath)` to find PurePosixPath instances
 - Process any attribute that contains a PurePosixPath value, not just `href` and `src`
 
 **Element Transformation**
 
-- Convert detected `PathElement` nodes into regular `Element` instances
+- Convert detected `TraversableElement` nodes into regular `Element` instances
 - Replace `PurePosixPath` attribute values with string representations calculated by the strategy
 - Preserve all other attributes unchanged (tag, children, non-PurePosixPath attrs)
 - Maintain element structure and hierarchy in the output tree
@@ -86,13 +86,13 @@ No visual assets provided for this feature.
 - Implements optimization to return same object when children unchanged
 - Should be extracted into `_walk_tree()` helper and reused by both functions
 
-**PathElement Class**
+**TraversableElement Class**
 
 - Located in `/Users/pauleveritt/projects/t-strings/tdom-path/src/tdom_path/tree.py` lines 24-58
 - Already defined and tested as Element subclass with PurePosixPath attribute support
 - Used to preserve type information for component asset paths through rendering pipeline
 - Attributes accept `str | PurePosixPath | None` values
-- Detection logic: `isinstance(node, PathElement)`
+- Detection logic: `isinstance(node, TraversableElement)`
 
 **Path Utilities in `webpath.py`**
 

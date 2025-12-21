@@ -2,7 +2,7 @@
 
 ## Initial Description
 
-This feature involves writing a function that walks the tree looking for `PathElement` and rewrites values into
+This feature involves writing a function that walks the tree looking for `TraversableElement` and rewrites values into
 `Element` with paths relative to the target. This is the next planned feature according to the project roadmap (item
 #3).
 
@@ -18,11 +18,11 @@ a different name/signature?
 **Answer:** Yes - use
 `render_path_nodes(tree: Node, target: PurePath, strategy: RenderStrategy = RelativePathStrategy())`
 
-**Q2:** PathElement Detection - I assume we'll detect `PathElement` using
-`isinstance(node, PathElement)` and then inspect its attributes for `PurePosixPath` values. Should we also check
+**Q2:** TraversableElement Detection - I assume we'll detect `TraversableElement` using
+`isinstance(node, TraversableElement)` and then inspect its attributes for `PurePosixPath` values. Should we also check
 specific attribute names (like `href`, `src`) or scan all attributes?
 
-**Answer:** Yes - detect using `isinstance(node, PathElement)` and inspect attributes for `PurePosixPath` values
+**Answer:** Yes - detect using `isinstance(node, TraversableElement)` and inspect attributes for `PurePosixPath` values
 
 **Q3:** Rendering Strategy Pattern - I'm thinking we should use a Protocol-based strategy pattern where
 `RelativePathStrategy` is the default but users can provide custom strategies. Should the strategy have a method like
@@ -31,11 +31,11 @@ specific attribute names (like `href`, `src`) or scan all attributes?
 **Answer:** Yes - Protocol-based strategy pattern with default `RelativePathStrategy`, but consider using
 `PurePosixPath` instead of `PurePath`
 
-**Q4:** Output Element Type - I assume the function returns a tree where `PathElement` nodes are replaced with
+**Q4:** Output Element Type - I assume the function returns a tree where `TraversableElement` nodes are replaced with
 regular `Element` instances containing string `href`/`src` attributes. Is that correct, or should we keep them as
-`PathElement` but with string attributes?
+`TraversableElement` but with string attributes?
 
-**Answer:** Yes - create regular `Element` instances (not `PathElement`) with string href/src attributes
+**Answer:** Yes - create regular `Element` instances (not `TraversableElement`) with string href/src attributes
 
 **Q5:** Refactoring Helpers - Since we already have tree-walking code in the asset rewriting, should we refactor out a
 shared `_walk_tree(node, transform_fn)` helper, or keep this implementation separate for now?
@@ -81,12 +81,12 @@ Not applicable.
 
 ### Functional Requirements
 
-- Create a `render_path_nodes()` function that walks the tree and transforms `PathElement` nodes
+- Create a `render_path_nodes()` function that walks the tree and transforms `TraversableElement` nodes
 - Function signature:
   `render_path_nodes(tree: Node, target: PurePath, strategy: RenderStrategy = RelativePathStrategy())`
-- Detect `PathElement` instances using `isinstance()` checks
+- Detect `TraversableElement` instances using `isinstance()` checks
 - Inspect all attributes of detected nodes for `PurePosixPath` values
-- Transform detected `PathElement` nodes into regular `Element` nodes
+- Transform detected `TraversableElement` nodes into regular `Element` nodes
 - Replace `PurePosixPath` attribute values with string representations (relative paths)
 - Use `PurePosixPath` instead of `PurePath` for path calculations
 - Implement Protocol-based strategy pattern for path rendering
@@ -111,7 +111,7 @@ Not applicable.
 - `RenderStrategy` Protocol definition
 - `RelativePathStrategy` implementation with site prefix support
 - Refactored `_walk_tree()` helper function
-- Detection and transformation of `PathElement` nodes
+- Detection and transformation of `TraversableElement` nodes
 - Relative path calculation using `PurePosixPath`
 - Immutability preservation with optimization for unchanged trees
 - Examples demonstrating usage with site prefixes

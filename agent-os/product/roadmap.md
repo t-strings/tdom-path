@@ -10,23 +10,23 @@
    Include `@path_nodes` decorator for automatic component integration. Follow tdom-sphinx's tree walking patterns.
    Skip external URLs and special schemes. Immutable tree transformation. `M` **Complete**
 
-3. [x] Path Element — Make a `PathElement(Element)` subclass that allows attribute values that are
+3. [x] Path Element — Make a `TraversableElement(Element)` subclass that allows attribute values that are
    `PurePosixPath` instances. When the tree walker detects the need to store a PurePosixPath and makes a new `Element`,
    make
-   a `PathElement` instead. `S` **Complete**
+   a `TraversableElement` instead. `S` **Complete**
 
 4. [x] Path Rendering — Write a function that is given a node tree and a `target: PurePosixPath`. The function walks
-   the tree looking for `PathElement` and rewrites the value into an `Element` with a path relative to the target.
+   the tree looking for `TraversableElement` and rewrites the value into an `Element` with a path relative to the target.
    Support rendering strategies: relative path (default) or custom resolver. Re-use current
    walking/rewriting logic (and refactor helpers as needed). Test with trees containing PurePosixPath values. `S` **Complete**
 
-5. [ ] Traversable and package specs - Bring back Traversable from a previous commit. Support `src` and `href` strings
+5. [x] Traversable and package specs - Bring back Traversable from a previous commit. Support `src` and `href` strings
    that point to files in a Python package. Use the `importlib.resources` standard format of
    `mypackage:static/styles.css` and its `resolve_asset` helper. Try to use this for non-package asset strings that are
    just relative paths, such as `./static/styles.css`. Write tests that simulate getting resources from a package. Write
    helpers that simulate pathlib `.exists()` for both package assets and local assets, perhaps using Traversable's
    `is_file` and `is_dir`. Update the path rendering logic and tests to also take account of package assets. Note in the
-   docs that `tdom-path` supports packages assets.  `M`
+   docs that `tdom-path` supports packages assets.  `M` **Complete**
 
 6. [x] Relative Path Calculation — Implement relative path calculation based on render target. Convert module-relative
    PurePosixPath values to relative paths from current page to asset location. Support site prefix for SSG deployments. `S` **Complete**

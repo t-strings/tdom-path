@@ -5,6 +5,7 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import wraps
+from importlib.resources.abc import Traversable
 # Use PurePosixPath instead of PurePath to ensure cross-platform consistency
 # Web paths must always use forward slashes (/), never backslashes (\)
 # PurePosixPath guarantees POSIX-style paths regardless of OS
@@ -13,6 +14,54 @@ from typing import Any, ParamSpec, Protocol, TypeGuard
 
 from tdom import Element, Fragment, Node
 from tdom_path.webpath import make_path
+
+
+class _TraversableWithPath(Traversable):
+    """Internal wrapper that stores module-relative path with Traversable.
+
+    This wrapper is used internally to attach module-relative path information
+    to Traversable instances when they're stored as element attributes. The
+    module path is used for relative path calculations during rendering.
+    """
+
+    def __init__(self, traversable: Traversable, module_path: PurePosixPath):
+        self._traversable = traversable
+        self._module_path = module_path
+
+    def __str__(self) -> str:
+        return str(self._module_path)
+
+    def is_dir(self) -> bool:
+        return self._traversable.is_dir()
+
+    def is_file(self) -> bool:
+        return self._traversable.is_file()
+
+    def iterdir(self):
+        return self._traversable.iterdir()
+
+    def __truediv__(self, child):
+        result = self._traversable / child
+        new_path = self._module_path / child
+        return _TraversableWithPath(result, new_path)
+
+    def open(self, mode='r', *args, **kwargs):
+        return self._traversable.open(mode, *args, **kwargs)
+
+    def read_bytes(self):
+        return self._traversable.read_bytes()
+
+    def read_text(self, encoding=None):
+        return self._traversable.read_text(encoding)
+
+    @property
+    def name(self):
+        return self._traversable.name
+
+    def joinpath(self, *descendants):
+        result = self._traversable.joinpath(*descendants)
+        new_path = self._module_path.joinpath(*descendants)
+        return _TraversableWithPath(result, new_path)
 
 # Type variables for decorator
 P = ParamSpec("P")
@@ -25,28 +74,28 @@ _EXTERNAL_URL_PATTERN = re.compile(
 
 
 @dataclass(slots=True)
-class PathElement(Element):
-    """Element subclass that allows PurePosixPath attribute values.
+class TraversableElement(Element):
+    """Element subclass that allows Traversable attribute values.
 
-    This class extends Element to support PurePosixPath instances in attribute
+    This class extends Element to support Traversable instances in attribute
     values, enabling the tree walker to preserve type information for component
     asset paths through the rendering pipeline.
 
-    The attrs field accepts str, PurePosixPath, or None values. During rendering,
-    PurePosixPath values are automatically converted to strings via __str__(),
+    The attrs field accepts str, Traversable, or None values. During rendering,
+    Traversable values are automatically converted to strings via __str__(),
     producing module-relative path strings in the final HTML output.
 
     All other behavior is inherited from Element, including __post_init__
     validation and __str__() rendering.
 
     Examples:
-        >>> from pathlib import PurePosixPath
+        >>> from importlib.resources.abc import Traversable
         >>> from tdom_path.webpath import make_path
         >>> from mysite.components.heading import Heading
         >>>
-        >>> # Create element with PurePosixPath href
+        >>> # Create element with Traversable href
         >>> path = make_path(Heading, "static/styles.css")
-        >>> elem = PathElement(
+        >>> elem = TraversableElement(
         ...     tag="link",
         ...     attrs={"rel": "stylesheet", "href": path},
         ...     children=[]
@@ -57,7 +106,7 @@ class PathElement(Element):
         '<link rel="stylesheet" href="mysite/components/heading/static/styles.css" />'
     """
 
-    attrs: dict[str, str | PurePosixPath | None]
+    attrs: dict[str, str | Traversable | None]
 
 
 def _should_process_href(href: str | None) -> TypeGuard[str]:
@@ -73,6 +122,63 @@ def _should_process_href(href: str | None) -> TypeGuard[str]:
         return False
 
     return not _EXTERNAL_URL_PATTERN.match(href)
+
+
+def _validate_asset_exists(
+    asset_path: Traversable, component: Any, attr_name: str
+) -> None:
+    """Validate that an asset exists.
+
+    Checks if the Traversable asset exists using the .is_file() method.
+    Fails immediately with a clear error message if the asset doesn't exist.
+
+    Args:
+        asset_path: Traversable instance pointing to the asset
+        component: Component instance/class for error context
+        attr_name: Attribute name (e.g., "href", "src") for error context
+
+    Raises:
+        FileNotFoundError: If the asset file does not exist
+
+    Examples:
+        >>> from tdom_path.webpath import make_path
+        >>> from mysite.components.heading import Heading
+        >>>
+        >>> # Validate existing asset
+        >>> asset_path = make_path(Heading, "static/styles.css")
+        >>> _validate_asset_exists(asset_path, Heading, "href")  # Passes
+        >>>
+        >>> # Validate missing asset
+        >>> missing_path = make_path(Heading, "static/missing.css")
+        >>> _validate_asset_exists(missing_path, Heading, "href")  # Raises FileNotFoundError
+
+    TODO: Consider future validation options:
+    - Collect all missing assets and report at end (batch mode)
+    - Add strict/lenient mode flag for configurable behavior
+    - Log warnings instead of failing (non-blocking mode)
+    - All of the above as configuration options (ValidationConfig)
+    """
+    # Check if the asset file exists
+    if not asset_path.is_file():
+        # Extract component name for better error messages
+        component_name = (
+            component.__name__
+            if hasattr(component, "__name__")
+            else component.__class__.__name__
+        )
+
+        # Get module name for additional context
+        module_name = getattr(component, "__module__", "unknown")
+
+        # Build clear error message with context
+        error_msg = (
+            f"Asset not found: '{asset_path.name}' "
+            f"(attribute: '{attr_name}', "
+            f"component: '{component_name}' in '{module_name}', "
+            f"path: {asset_path})"
+        )
+
+        raise FileNotFoundError(error_msg)
 
 
 def _walk_tree(node: Node, transform_fn: Callable[[Node], Node]) -> Node:
@@ -147,8 +253,8 @@ def _walk_tree(node: Node, transform_fn: Callable[[Node], Node]) -> Node:
 
 def _transform_asset_element(
     element: Element, attr_name: str, component: Any
-) -> Element | PathElement:
-    """Transform element's asset attribute to PurePosixPath.
+) -> Element | TraversableElement:
+    """Transform element's asset attribute to Traversable.
 
     Args:
         element: The element to transform (link or script)
@@ -156,7 +262,7 @@ def _transform_asset_element(
         component: Component instance/class for make_path() resolution
 
     Returns:
-        New Element or PathElement with asset attribute transformed to PurePosixPath
+        New Element or TraversableElement with asset attribute transformed to Traversable
     """
     attr_value = element.attrs.get(attr_name)
 
@@ -167,15 +273,33 @@ def _transform_asset_element(
     # TypeGuard ensures attr_value is str, but add assert for type checker
     assert isinstance(attr_value, str)
 
-    # Create dict that accepts Any values (including PurePosixPath)
+    # Create dict that accepts Any values (including Traversable)
     attrs = dict[str, Any](element.attrs)
-    attrs[attr_name] = make_path(component, attr_value)
+    asset_path = make_path(component, attr_value)
 
-    # Check if any attr value is PurePosixPath - if so, use PathElement
-    has_path = any(isinstance(v, PurePosixPath) for v in attrs.values())
+    # Validate asset existence (fail fast with clear error message)
+    _validate_asset_exists(asset_path, component, attr_name)
+
+    # Calculate module-relative path for the asset
+    # This will be used for relative path calculations during rendering
+    module_name = component.__module__ if hasattr(component, "__module__") else "unknown"
+    parts = module_name.split(".")
+    if len(parts) >= 2 and parts[-1] == parts[-2]:
+        module_name = ".".join(parts[:-1])
+    module_web_path = module_name.replace(".", "/")
+    module_path = PurePosixPath(module_web_path) / attr_value.lstrip("./")
+
+    # Wrap the Traversable with module path for rendering
+    wrapped_path = _TraversableWithPath(asset_path, module_path)
+
+    # Store the wrapped asset path
+    attrs[attr_name] = wrapped_path
+
+    # Check if any attr value is Traversable - if so, use TraversableElement
+    has_path = any(isinstance(v, Traversable) for v in attrs.values())
 
     if has_path:
-        return PathElement(
+        return TraversableElement(
             tag=element.tag,
             attrs=attrs,
             children=element.children,
@@ -196,7 +320,7 @@ def make_path_nodes(target: Node, component: Any) -> Node:
     - <script> tags with src attributes (anywhere in tree)
 
     For each detected element, converts the href/src string attribute to a
-    PurePosixPath using make_path(component, attr_value).
+    Traversable using make_path(component, attr_value).
 
     External URLs (http://, https://, //), special schemes (mailto:, tel:,
     data:, javascript:), and anchor-only links (#...) are left unchanged.
@@ -206,7 +330,7 @@ def make_path_nodes(target: Node, component: Any) -> Node:
         component: Component instance/class for make_path() resolution
 
     Returns:
-        New Node tree with asset attributes converted to PurePosixPath
+        New Node tree with asset attributes converted to Traversable
 
     Examples:
         >>> from tdom import html
@@ -219,13 +343,13 @@ def make_path_nodes(target: Node, component: Any) -> Node:
         ...     </head>
         ... ''')
         >>>
-        >>> # Transform to use PurePosixPath
+        >>> # Transform to use Traversable
         >>> new_tree = make_path_nodes(tree, Heading)
-        >>> # new_tree now has PurePosixPath in link's href
+        >>> # new_tree now has Traversable in link's href
     """
 
     def transform(node: Node) -> Node:
-        """Transform asset-bearing elements to use PurePosixPath."""
+        """Transform asset-bearing elements to use Traversable."""
         match node:
             # Transform <link> elements with href
             case Element(tag="link"):
@@ -245,17 +369,18 @@ def make_path_nodes(target: Node, component: Any) -> Node:
 class RenderStrategy(Protocol):
     """Protocol for path rendering strategies.
 
-    Defines the interface for calculating how PurePosixPath paths should be
+    Defines the interface for calculating how Traversable paths should be
     rendered as strings in the final HTML output. Implementations can provide
     different rendering strategies such as relative paths, absolute paths,
     CDN URLs, etc.
 
-    The protocol requires a single method that takes a source PurePosixPath
+    The protocol requires a single method that takes a source Traversable
     and target output location, returning the string representation to use
     in the rendered HTML.
 
     Examples:
         >>> from pathlib import PurePosixPath
+        >>> from importlib.resources.abc import Traversable
         >>> from tdom_path.webpath import make_path
         >>> from mysite.components.heading import Heading
         >>>
@@ -272,11 +397,11 @@ class RenderStrategy(Protocol):
         >>> # Returns path prefixed with "mysite/static"
     """
 
-    def calculate_path(self, source: PurePosixPath, target: PurePosixPath) -> str:
+    def calculate_path(self, source: Traversable, target: PurePosixPath) -> str:
         """Calculate string representation for a path in rendered output.
 
         Args:
-            source: The PurePosixPath source path to render
+            source: The Traversable source path to render
             target: The PurePosixPath target output location
 
         Returns:
@@ -293,7 +418,7 @@ class RelativePathStrategy:
     asset location, optionally prepending a site prefix for deployment scenarios
     where assets are served from a subdirectory.
 
-    The strategy works with PurePosixPath objects and calculates relative
+    The strategy works with Traversable objects and calculates relative
     paths based on web directory structure.
 
     Uses PurePosixPath for all path calculations to ensure cross-platform
@@ -328,15 +453,16 @@ class RelativePathStrategy:
 
     site_prefix: PurePosixPath | None = None
 
-    def calculate_path(self, source: PurePosixPath, target: PurePosixPath) -> str:
+    def calculate_path(self, source: Traversable, target: PurePosixPath) -> str:
         """Calculate relative path from target to source.
 
-        Both source and target are module-relative PurePosixPath objects.
-        This method calculates the relative path from the target's location
-        to the source, optionally prepending a site prefix.
+        Both source (Traversable) and target (PurePosixPath) represent paths
+        to be used for web assets. This method calculates the relative path
+        from the target's location to the source, optionally prepending a
+        site prefix.
 
         Args:
-            source: The PurePosixPath source asset path (module-relative)
+            source: The Traversable source asset path
             target: The PurePosixPath target output location (module-relative)
 
         Returns:
@@ -344,21 +470,42 @@ class RelativePathStrategy:
 
         Examples:
             >>> # Same directory
-            >>> source = PurePosixPath("mysite/components/heading/styles.css")
+            >>> source = make_path(Heading, "styles.css")  # Traversable
             >>> target = PurePosixPath("mysite/components/heading/index.html")
             >>> strategy.calculate_path(source, target)
             'styles.css'
             >>>
             >>> # Parent directory navigation
-            >>> source = PurePosixPath("mysite/components/heading/static/styles.css")
+            >>> source = make_path(Heading, "static/styles.css")  # Traversable
             >>> target = PurePosixPath("mysite/pages/about.html")
             >>> strategy.calculate_path(source, target)
             '../../components/heading/static/styles.css'
         """
+        # Convert Traversable to PurePosixPath for calculation
+        # If it's wrapped with _TraversableWithPath, str() gives module-relative path
+        # Otherwise, we need to extract module-relative path from absolute path
+        if isinstance(source, _TraversableWithPath):
+            source_path = PurePosixPath(str(source))
+        else:
+            # Fallback for unwrapped Traversable: extract module-relative path
+            # Absolute path format: /.../.../examples/mysite/components/heading/static/styles.css
+            # We want: mysite/components/heading/static/styles.css
+            abs_path_str = str(source)
+            # Find "examples/" or "tests/" and take everything after it
+            if "/examples/" in abs_path_str:
+                module_relative = abs_path_str.split("/examples/", 1)[1]
+                source_path = PurePosixPath(module_relative)
+            elif "/tests/" in abs_path_str:
+                module_relative = abs_path_str.split("/tests/", 1)[1]
+                source_path = PurePosixPath(module_relative)
+            else:
+                # Last resort: use absolute path
+                source_path = PurePosixPath(abs_path_str)
+
         # If site_prefix is provided, prepend it to the source path
         # This is useful for deploying to subdirectories (e.g., GitHub Pages /repo/)
         if self.site_prefix:
-            return str(self.site_prefix / source)
+            return str(self.site_prefix / source_path)
 
         # Calculate relative path from target's parent directory to source
         # Why target.parent? Because target is a file (e.g., pages/about.html),
@@ -370,20 +517,20 @@ class RelativePathStrategy:
         # Example: from pages/about.html to components/heading/static/styles.css
         # becomes: ../components/heading/static/styles.css
         try:
-            relative_path = source.relative_to(target_dir, walk_up=True)
+            relative_path = source_path.relative_to(target_dir, walk_up=True)
             return str(relative_path)
         except ValueError:
             # If relative_to fails (rare edge case), return source path as-is
-            return str(source)
+            return str(source_path)
 
 
 def _render_transform_node(
     node: Node, target: PurePosixPath, strategy: RenderStrategy
 ) -> Node:
-    """Transform PathElement nodes to Element nodes with string paths.
+    """Transform TraversableElement nodes to Element nodes with string paths.
 
-    Helper function that processes a single node, converting PathElement
-    instances with PurePosixPath attributes into regular Element instances
+    Helper function that processes a single node, converting TraversableElement
+    instances with Traversable attributes into regular Element instances
     with those paths rendered as strings.
 
     Args:
@@ -394,30 +541,30 @@ def _render_transform_node(
     Returns:
         Transformed Element node, or original node if no transformation needed
     """
-    # Only process PathElement instances
-    if not isinstance(node, PathElement):
+    # Only process TraversableElement instances
+    if not isinstance(node, TraversableElement):
         return node
 
-    # Check if any attribute contains a PurePosixPath
+    # Check if any attribute contains a Traversable
     has_path_attr = any(
-        isinstance(value, PurePosixPath) for value in node.attrs.values()
+        isinstance(value, Traversable) for value in node.attrs.values()
     )
 
-    # If no PurePosixPath attributes, return unchanged
+    # If no Traversable attributes, return unchanged
     if not has_path_attr:
         return node
 
-    # Transform PurePosixPath attributes to strings using strategy
+    # Transform Traversable attributes to strings using strategy
     new_attrs: dict[str, str | None] = {}
     for attr_name, attr_value in node.attrs.items():
-        if isinstance(attr_value, PurePosixPath):
+        if isinstance(attr_value, Traversable):
             # Calculate string path using strategy
             new_attrs[attr_name] = strategy.calculate_path(attr_value, target)
         else:
-            # Preserve non-PurePosixPath attributes as-is
+            # Preserve non-Traversable attributes as-is
             new_attrs[attr_name] = attr_value  # type: ignore
 
-    # Return new Element (NOT PathElement) with string attributes
+    # Return new Element (NOT TraversableElement) with string attributes
     return Element(
         tag=node.tag,
         attrs=new_attrs,
@@ -428,23 +575,23 @@ def _render_transform_node(
 def render_path_nodes(
     tree: Node, target: PurePosixPath, strategy: RenderStrategy | None = None
 ) -> Node:
-    """Render PathElement nodes to Element nodes with relative path strings.
+    """Render TraversableElement nodes to Element nodes with relative path strings.
 
-    Walks the Node tree, detects PathElement instances containing PurePosixPath
+    Walks the Node tree, detects TraversableElement instances containing Traversable
     attribute values, and transforms them into regular Element instances with
     those paths rendered as strings using the provided strategy.
 
     This function is the final rendering step after make_path_nodes() has
-    converted asset paths to PurePosixPath instances. It calculates the
+    converted asset paths to Traversable instances. It calculates the
     appropriate string representation for each path based on the target
     output location.
 
-    The function processes ANY attribute containing a PurePosixPath value,
+    The function processes ANY attribute containing a Traversable value,
     not just href and src. This enables flexible asset path handling for
     custom attributes.
 
     Maintains immutability by creating new nodes only when transformations
-    occur. Returns the same object reference when no PathElement nodes are
+    occur. Returns the same object reference when no TraversableElement nodes are
     found (optimization).
 
     Args:
@@ -454,7 +601,7 @@ def render_path_nodes(
                  Defaults to RelativePathStrategy() if None.
 
     Returns:
-        New Node tree with PathElement nodes transformed to Element nodes
+        New Node tree with TraversableElement nodes transformed to Element nodes
         containing string path attributes, or the same object if no changes needed
 
     Examples:
@@ -464,7 +611,7 @@ def render_path_nodes(
         >>> from tdom_path.tree import RelativePathStrategy
         >>> from mysite.components.heading import Heading
         >>>
-        >>> # Step 1: Create tree with PathElement nodes
+        >>> # Step 1: Create tree with TraversableElement nodes
         >>> tree = html(t'''
         ...     <head>
         ...         <link rel="stylesheet" href="static/styles.css">
@@ -472,7 +619,7 @@ def render_path_nodes(
         ... ''')
         >>> path_tree = make_path_nodes(tree, Heading)
         >>>
-        >>> # Step 2: Render PathElement nodes to Element with relative paths
+        >>> # Step 2: Render TraversableElement nodes to Element with relative paths
         >>> target = PurePosixPath("mysite/pages/about.html")
         >>> rendered = render_path_nodes(path_tree, target)
         >>> # Link now has href="../../components/heading/static/styles.css"

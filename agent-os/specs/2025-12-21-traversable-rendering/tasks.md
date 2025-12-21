@@ -98,12 +98,12 @@ Estimated Total Tasks: 18-20
 
 - [x] 3.0 Implement and test render_path_nodes()
     - [x] 3.1 Write 4-6 focused tests for `render_path_nodes()`
-        - Test PathElement detection and transformation
+        - Test TraversableElement detection and transformation
         - Test PurePosixPath attribute replacement with strings
         - Test default RelativePathStrategy usage
         - Test custom strategy parameter
-        - Test tree with no PathElements (optimization)
-        - Test mixed tree (Element and PathElement)
+        - Test tree with no TraversableElements (optimization)
+        - Test mixed tree (Element and TraversableElement)
     - [x] 3.2 Implement `render_path_nodes()` function
         - Place in `/Users/pauleveritt/projects/t-strings/tdom-path/src/tdom_path/tree.py`
         - Signature:
@@ -111,8 +111,8 @@ Estimated Total Tasks: 18-20
         - Default strategy to `RelativePathStrategy()` if None
         - Use `_walk_tree()` helper for tree traversal
         - Define transformation function for node processing
-    - [x] 3.3 Implement PathElement detection logic
-        - Check `isinstance(node, PathElement)` in transformation function
+    - [x] 3.3 Implement TraversableElement detection logic
+        - Check `isinstance(node, TraversableElement)` in transformation function
         - Inspect all attributes for `isinstance(value, PurePosixPath)`
         - Process ANY attribute containing PurePosixPath (not just href/src)
         - Skip nodes that don't contain PurePosixPath attributes
@@ -121,10 +121,10 @@ Estimated Total Tasks: 18-20
         - For each PurePosixPath attr: call `strategy.calculate_path(traversable, target)`
         - Replace PurePosixPath values with calculated string paths
         - Preserve all other attributes unchanged
-        - Return new Element instance (NOT PathElement)
+        - Return new Element instance (NOT TraversableElement)
         - Keep tag and children identical
     - [x] 3.5 Ensure immutability and optimization
-        - Return same object reference when no PathElements found
+        - Return same object reference when no TraversableElements found
         - Only create new nodes when transformations occur
         - Leverage `_walk_tree()` optimization pattern
     - [x] 3.6 Add comprehensive docstrings and examples
@@ -138,14 +138,14 @@ Estimated Total Tasks: 18-20
         - Update module docstring if needed
     - [x] 3.8 Ensure Task Group 3 tests pass
         - Run ONLY the 4-6 tests written in 3.1
-        - Verify PathElement detection works
+        - Verify TraversableElement detection works
         - Confirm Element transformation is correct
         - Validate optimization works
 
 **Acceptance Criteria:**
 
 - `render_path_nodes()` function implemented
-- PathElement nodes transformed to Element nodes
+- TraversableElement nodes transformed to Element nodes
 - PurePosixPath attributes replaced with relative path strings
 - Strategy pattern works (default and custom)
 - Optimization returns same object when no changes needed
@@ -176,7 +176,7 @@ Estimated Total Tasks: 18-20
         - Ensure PurePosixPath types are correctly enforced
     - [x] 4.4 Update module documentation
         - Update README or main docs with render_path_nodes() usage
-        - Add example showing full pipeline: component -> PathElement -> render
+        - Add example showing full pipeline: component -> TraversableElement -> render
         - Document strategy pattern extensibility
         - Include examples with and without site_prefix
     - [x] 4.5 Add inline code comments
@@ -213,7 +213,7 @@ Recommended implementation sequence:
 
 - **PurePosixPath over PurePath**: Ensures cross-platform consistency in web path calculations
 - **Protocol-based strategy**: Enables type-safe custom strategies without inheritance
-- **PathElement → Element transformation**: Clean separation between internal and output types
+- **TraversableElement → Element transformation**: Clean separation between internal and output types
 - **Immutability with optimization**: Balance memory efficiency with functional programming patterns
 - **Generic attribute processing**: Handles ANY PurePosixPath attribute, not just href/src
 
