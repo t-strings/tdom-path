@@ -16,9 +16,11 @@
    a `TraversableElement` instead. `S` **Complete**
 
 4. [x] Path Rendering — Write a function that is given a node tree and a `target: PurePosixPath`. The function walks
-   the tree looking for `TraversableElement` and rewrites the value into an `Element` with a path relative to the target.
+   the tree looking for `TraversableElement` and rewrites the value into an `Element` with a path relative to the
+   target.
    Support rendering strategies: relative path (default) or custom resolver. Re-use current
-   walking/rewriting logic (and refactor helpers as needed). Test with trees containing PurePosixPath values. `S` **Complete**
+   walking/rewriting logic (and refactor helpers as needed). Test with trees containing PurePosixPath values. `S` *
+   *Complete**
 
 5. [x] Traversable and package specs - Bring back Traversable from a previous commit. Support `src` and `href` strings
    that point to files in a Python package. Use the `importlib.resources` standard format of
@@ -29,11 +31,13 @@
    docs that `tdom-path` supports packages assets.  `M` **Complete**
 
 6. [x] Relative Path Calculation — Implement relative path calculation based on render target. Convert module-relative
-   PurePosixPath values to relative paths from current page to asset location. Support site prefix for SSG deployments. `S` **Complete**
+   PurePosixPath values to relative paths from current page to asset location. Support site prefix for SSG deployments.
+   `S` **Complete**
 
-7. [ ] Build-Time Asset Collection — Implement asset collector that traverses Node tree to gather all static asset
-   references, generate manifest of assets needed for build output, and optimize asset copying based on manifest.
-   Support incremental builds by tracking changes. Test with large component libraries. `M`
+7. [ ] Asset Collection — In the pluggable implementation `RelativePathStrategy` implement a way to copy
+   collect Traversable asset instances that need to be copied to the output. Add `resolved_assets: set[Traversable]` (or
+   whatever is the correct type). Then make sure a single instance of `ResolvedAsset` can be re-used for multiple
+   renderings. `M`
 
 8. [ ] Measure Performance — Change the examples directory to use something much bigger from `../storyville/examples`
    and fix any tests to use it. Setup performance measurement and profiling using tests and pytest plugins to match how
