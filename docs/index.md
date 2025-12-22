@@ -12,7 +12,7 @@ Derived from implemented features:
 
 - **Package Asset Support** - Reference assets from installed packages using `package:path` syntax
 - **Relative Path Rendering** - Calculate relative paths from target to source for HTML output
-- **Framework Independence** - Same components work in Flask, Django, FastAPI, Sphinx
+- **Framework Independence** - Same components work in any web framework
 - **Type Safety** - Comprehensive type hints with IDE autocomplete support
 - **Asset Validation** - Automatic fail-fast validation with clear error messages
 - **SSG Integration** - Asset collection via `RelativePathStrategy.collected_assets`
@@ -92,7 +92,6 @@ html = str(rendered)
 
 guides/core-concepts
 guides/cookbook
-guides/framework-integration
 guides/advanced
 guides/performance
 ```
@@ -164,20 +163,10 @@ flowchart LR
     style HTML fill:#ffe1e1
 ```
 
-## Example Projects
-
-Complete working examples for different frameworks:
-
-- [Flask Example](https://github.com/your-repo/tdom-path/tree/main/examples/flask-example) - Dynamic server with component rendering
-- Django Example - Template integration with Django views (see examples directory)
-- FastAPI Example - Async routes with component rendering (see examples directory)
-- Sphinx Example - SSG build with asset collection (see examples directory)
-
 ## Next Steps
 
 - Read [Core Concepts](guides/core-concepts.md) to understand the architecture
 - Explore [Cookbook Patterns](guides/cookbook.md) for common use cases
-- Review [Framework Integration](guides/framework-integration.md) for specific frameworks
 - Check [API Reference](reference/api-reference.md) for detailed function documentation
 
 ## Requirements

@@ -13,7 +13,7 @@ from importlib.resources.abc import Traversable
 
 from aria_testing import get_by_tag_name, get_all_by_tag_name
 from tdom import Element, Fragment, Text, Comment, html
-from mysite.components.heading import Heading
+from examples.mysite.components.heading import Heading
 from tdom_path import make_path_nodes, path_nodes
 from tdom_path.tree import (
     TraversableElement,
@@ -341,7 +341,6 @@ def test_path_element_behavior():
     import pytest
 
     css_path = make_path(Heading, "static/styles.css")
-    js_path = make_path(Heading, "static/script.js")
 
     # Test mixed attr types (str, Traversable, None)
     elem = TraversableElement(
@@ -1075,7 +1074,6 @@ def test_integration_preservation_of_non_asset_elements():
     body = get_by_tag_name(rendered_tree, "body")
     header = get_by_tag_name(body, "header")
     main = get_by_tag_name(body, "main")
-    footer = get_by_tag_name(body, "footer")
 
     # Verify content preserved
     h1 = get_by_tag_name(header, "h1")

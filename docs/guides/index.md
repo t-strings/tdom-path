@@ -9,7 +9,6 @@ Comprehensive guides for using tdom-path in your projects.
 
 core-concepts
 cookbook
-framework-integration
 advanced
 performance
 ```
@@ -28,7 +27,6 @@ tdom-path provides a clean API for resolving component assets in web application
 
 1. Start with [Core Concepts](core-concepts.md) to understand the architecture
 2. Review [Cookbook Patterns](cookbook.md) for practical examples
-3. Check [Framework Integration](framework-integration.md) for your framework
 
 ### For Experienced Users
 
@@ -51,6 +49,5 @@ Choose a guide based on your needs:
 
 - New to tdom-path? Start with [Core Concepts](core-concepts.md)
 - Building components? See [Cookbook Patterns](cookbook.md)
-- Integrating with a framework? Check [Framework Integration](framework-integration.md)
 - Need advanced features? Review [Advanced Usage](advanced.md)
 - Optimizing performance? See [Performance](performance.md)
