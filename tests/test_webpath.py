@@ -9,9 +9,7 @@ These tests focus on make_path functionality:
 - Package path resolution to Traversable instances
 """
 
-from importlib.resources import files
 from importlib.resources.abc import Traversable
-from pathlib import PurePosixPath
 
 from mysite.components.heading import Heading
 from tdom_path import make_path
@@ -28,7 +26,10 @@ def test_make_path_basic():
 
     # Path should be module-relative
     path_str = str(css_path)
-    assert "mysite/components/heading/static/styles.css" in path_str or "styles.css" in path_str
+    assert (
+        "mysite/components/heading/static/styles.css" in path_str
+        or "styles.css" in path_str
+    )
 
 
 def test_make_path_module_structure():
@@ -80,6 +81,7 @@ def test_make_path_no_module_attribute():
 
 
 # Task Group 1: Path Type Detection and Parsing Tests
+
 
 def test_detect_path_type_package():
     """Test that package paths (with colon) are detected correctly."""
@@ -147,6 +149,7 @@ def test_parse_package_path_edge_cases():
 
 
 # Task Group 2: Traversable Resolution for Package Paths Tests
+
 
 def test_resolve_package_path_basic():
     """Test resolving package paths to Traversable instances.

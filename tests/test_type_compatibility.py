@@ -38,13 +38,13 @@ def test_traversable_element_accepts_mixed_attr_types():
     elem = TraversableElement(
         tag="link",
         attrs={
-            "rel": "stylesheet",           # str
-            "href": css_path,               # Traversable
-            "data-js": js_path,             # Traversable
-            "data-empty": None,             # None
-            "media": "screen"               # str
+            "rel": "stylesheet",  # str
+            "href": css_path,  # Traversable
+            "data-js": js_path,  # Traversable
+            "data-empty": None,  # None
+            "media": "screen",  # str
         },
-        children=[]
+        children=[],
     )
 
     # Verify all attribute types are preserved
@@ -69,13 +69,13 @@ def test_render_transform_node_handles_mixed_attributes():
     elem = TraversableElement(
         tag="link",
         attrs={
-            "rel": "stylesheet",           # Should be preserved
-            "href": css_path,               # Should be converted to string
-            "data-js": js_path,             # Should be converted to string
-            "data-test": None,              # Should be preserved
-            "media": "screen"               # Should be preserved
+            "rel": "stylesheet",  # Should be preserved
+            "href": css_path,  # Should be converted to string
+            "data-js": js_path,  # Should be converted to string
+            "data-test": None,  # Should be preserved
+            "media": "screen",  # Should be preserved
         },
-        children=[]
+        children=[],
     )
 
     # Render using strategy
@@ -133,9 +133,7 @@ def test_traversable_element_end_to_end_rendering():
 
     # Create TraversableElement
     elem = TraversableElement(
-        tag="link",
-        attrs={"rel": "stylesheet", "href": css_path},
-        children=[]
+        tag="link", attrs={"rel": "stylesheet", "href": css_path}, children=[]
     )
 
     # Convert to string representation

@@ -42,11 +42,11 @@
 8. [x] Measure Performance — Change the examples directory to use something much bigger from `../storyville/examples`
    and fix any tests to use it. Setup performance measurement and profiling using tests and pytest plugins to match how
    Storyville does it. Add performance measurement and profiling Justfile recipes like Storyville. Then measure
-   performance on the much-bigger example directory and look for bottlenecks. `M`
+   performance on the much-bigger example directory and look for bottlenecks. `M` **Complete**
 
-9. [ ] Documentation and Examples — Write comprehensive API documentation with type signatures, create cookbook with
+9. [x] Documentation and Examples — Write comprehensive API documentation with type signatures, create cookbook with
    common patterns (component libraries, theme development, SSG builds), and build example projects demonstrating
-   dynamic and static workflows. Include migration guides from framework-specific approaches. `L`
+   dynamic and static workflows. Include migration guides from framework-specific approaches. `L` **Complete**
 
 > Notes
 > - Order items by technical dependencies and product architecture

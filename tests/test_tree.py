@@ -23,7 +23,6 @@ from tdom_path.tree import (
     _render_transform_node,
     render_path_nodes,
     RelativePathStrategy,
-    RenderStrategy,
     _validate_asset_exists,
 )
 from tdom_path.webpath import make_path
@@ -36,7 +35,6 @@ from tdom_path.webpath import make_path
 
 def test_should_process_href_with_local_paths():
     """Test _should_process_href returns True for local paths."""
-    from tdom_path.tree import _should_process_href
 
     # Local relative paths should be processed
     assert _should_process_href("static/styles.css") is True
@@ -47,18 +45,18 @@ def test_should_process_href_with_local_paths():
 
 def test_should_process_href_with_external_urls():
     """Test _should_process_href returns False for external URLs."""
-    from tdom_path.tree import _should_process_href
 
     # External URLs should NOT be processed
     assert _should_process_href("http://example.com/style.css") is False
     assert _should_process_href("https://cdn.example.com/style.css") is False
     assert _should_process_href("//cdn.example.com/style.css") is False
-    assert _should_process_href("HTTP://EXAMPLE.COM/STYLE.CSS") is False  # Case insensitive
+    assert (
+        _should_process_href("HTTP://EXAMPLE.COM/STYLE.CSS") is False
+    )  # Case insensitive
 
 
 def test_should_process_href_with_special_schemes():
     """Test _should_process_href returns False for special schemes."""
-    from tdom_path.tree import _should_process_href
 
     # Special schemes should NOT be processed
     assert _should_process_href("mailto:user@example.com") is False
@@ -71,7 +69,6 @@ def test_should_process_href_with_special_schemes():
 
 def test_should_process_href_with_empty_values():
     """Test _should_process_href returns False for empty/None values."""
-    from tdom_path.tree import _should_process_href
 
     # Empty or None values should NOT be processed
     assert _should_process_href(None) is False
@@ -80,7 +77,6 @@ def test_should_process_href_with_empty_values():
 
 def test_should_process_href_with_non_string():
     """Test _should_process_href returns False for non-string values."""
-    from tdom_path.tree import _should_process_href
 
     # Non-string values should NOT be processed
     assert _should_process_href(123) is False  # type: ignore
@@ -89,12 +85,11 @@ def test_should_process_href_with_non_string():
 
 def test_transform_asset_element_with_local_href():
     """Test _transform_asset_element transforms local href to Traversable."""
-    from tdom_path.tree import _transform_asset_element
 
     elem = Element(
         tag="link",
         attrs={"rel": "stylesheet", "href": "static/styles.css"},
-        children=[]
+        children=[],
     )
 
     result = _transform_asset_element(elem, "href", Heading)
@@ -109,12 +104,11 @@ def test_transform_asset_element_with_local_href():
 
 def test_transform_asset_element_with_external_href():
     """Test _transform_asset_element leaves external URLs unchanged."""
-    from tdom_path.tree import _transform_asset_element
 
     elem = Element(
         tag="link",
         attrs={"rel": "stylesheet", "href": "https://cdn.example.com/style.css"},
-        children=[]
+        children=[],
     )
 
     result = _transform_asset_element(elem, "href", Heading)
@@ -128,12 +122,9 @@ def test_transform_asset_element_with_external_href():
 
 def test_transform_asset_element_with_script_src():
     """Test _transform_asset_element works with script src attribute."""
-    from tdom_path.tree import _transform_asset_element
 
     elem = Element(
-        tag="script",
-        attrs={"src": "static/app.js", "defer": "true"},
-        children=[]
+        tag="script", attrs={"src": "static/app.js", "defer": "true"}, children=[]
     )
 
     result = _transform_asset_element(elem, "src", Heading)
@@ -148,14 +139,9 @@ def test_transform_asset_element_with_script_src():
 
 def test_transform_asset_element_with_missing_attribute():
     """Test _transform_asset_element handles missing attribute gracefully."""
-    from tdom_path.tree import _transform_asset_element
 
     # Link without href attribute
-    elem = Element(
-        tag="link",
-        attrs={"rel": "stylesheet"},
-        children=[]
-    )
+    elem = Element(tag="link", attrs={"rel": "stylesheet"}, children=[])
 
     result = _transform_asset_element(elem, "href", Heading)
 
@@ -165,14 +151,9 @@ def test_transform_asset_element_with_missing_attribute():
 
 def test_transform_asset_element_preserves_children():
     """Test _transform_asset_element preserves element children."""
-    from tdom_path.tree import _transform_asset_element
 
     child_text = Text("Loading...")
-    elem = Element(
-        tag="script",
-        attrs={"src": "static/app.js"},
-        children=[child_text]
-    )
+    elem = Element(tag="script", attrs={"src": "static/app.js"}, children=[child_text])
 
     result = _transform_asset_element(elem, "src", Heading)
 
@@ -183,16 +164,13 @@ def test_transform_asset_element_preserves_children():
 
 def test_render_transform_node_with_path_element():
     """Test _render_transform_node transforms TraversableElement to Element."""
-    from tdom_path.tree import _render_transform_node
 
     css_path = make_path(Heading, "static/styles.css")
     strategy = RelativePathStrategy()
     target = PurePosixPath("mysite/components/heading/index.html")
 
     node = TraversableElement(
-        tag="link",
-        attrs={"rel": "stylesheet", "href": css_path},
-        children=[]
+        tag="link", attrs={"rel": "stylesheet", "href": css_path}, children=[]
     )
 
     result = _render_transform_node(node, target, strategy)
@@ -209,16 +187,11 @@ def test_render_transform_node_with_path_element():
 
 def test_render_transform_node_with_regular_element():
     """Test _render_transform_node leaves regular Element unchanged."""
-    from tdom_path.tree import _render_transform_node
 
     strategy = RelativePathStrategy()
     target = PurePosixPath("index.html")
 
-    node = Element(
-        tag="div",
-        attrs={"class": "container"},
-        children=[]
-    )
+    node = Element(tag="div", attrs={"class": "container"}, children=[])
 
     result = _render_transform_node(node, target, strategy)
 
@@ -228,7 +201,6 @@ def test_render_transform_node_with_regular_element():
 
 def test_render_transform_node_with_path_element_no_paths():
     """Test _render_transform_node leaves TraversableElement without Traversable unchanged."""
-    from tdom_path.tree import _render_transform_node
 
     strategy = RelativePathStrategy()
     target = PurePosixPath("index.html")
@@ -237,7 +209,7 @@ def test_render_transform_node_with_path_element_no_paths():
     node = TraversableElement(
         tag="link",
         attrs={"rel": "stylesheet", "href": "https://cdn.example.com/style.css"},
-        children=[]
+        children=[],
     )
 
     result = _render_transform_node(node, target, strategy)
@@ -248,7 +220,6 @@ def test_render_transform_node_with_path_element_no_paths():
 
 def test_render_transform_node_multiple_path_attrs():
     """Test _render_transform_node transforms multiple Traversable attributes."""
-    from tdom_path.tree import _render_transform_node
 
     path1 = make_path(Heading, "static/file1.css")
     path2 = make_path(Heading, "static/file2.js")
@@ -257,12 +228,8 @@ def test_render_transform_node_multiple_path_attrs():
 
     node = TraversableElement(
         tag="custom",
-        attrs={
-            "data-css": path1,
-            "data-js": path2,
-            "rel": "custom"
-        },
-        children=[]
+        attrs={"data-css": path1, "data-js": path2, "rel": "custom"},
+        children=[],
     )
 
     result = _render_transform_node(node, target, strategy)
@@ -280,16 +247,13 @@ def test_render_transform_node_multiple_path_attrs():
 
 def test_render_transform_node_with_custom_strategy():
     """Test _render_transform_node uses provided strategy."""
-    from tdom_path.tree import _render_transform_node
 
     css_path = make_path(Heading, "static/styles.css")
     strategy = RelativePathStrategy(site_prefix=PurePosixPath("mysite/static"))
     target = PurePosixPath("index.html")
 
     node = TraversableElement(
-        tag="link",
-        attrs={"rel": "stylesheet", "href": css_path},
-        children=[]
+        tag="link", attrs={"rel": "stylesheet", "href": css_path}, children=[]
     )
 
     result = _render_transform_node(node, target, strategy)
@@ -318,11 +282,14 @@ def test_walk_tree_transformation_and_immutability():
 
     # Transform function that modifies nested p elements
     visited_tags = []
+
     def modify_p(node):
         if isinstance(node, Element):
             visited_tags.append(node.tag)
             if node.tag == "p":
-                return Element(tag="p", attrs={"id": "modified"}, children=node.children)
+                return Element(
+                    tag="p", attrs={"id": "modified"}, children=node.children
+                )
         return node
 
     result = _walk_tree(original, modify_p)
@@ -383,9 +350,9 @@ def test_path_element_behavior():
             "rel": "stylesheet",
             "href": css_path,
             "type": "text/css",
-            "media": None
+            "media": None,
         },
-        children=[]
+        children=[],
     )
 
     assert elem.tag == "link"
@@ -399,7 +366,9 @@ def test_path_element_behavior():
     assert not hasattr(elem, "__dict__")  # slots=True
 
     # Test immutability pattern
-    new_elem = TraversableElement(tag="script", attrs=elem.attrs, children=elem.children)
+    new_elem = TraversableElement(
+        tag="script", attrs=elem.attrs, children=elem.children
+    )
     assert new_elem.tag == "script"
     assert elem.tag == "link"  # Original unchanged
 
@@ -489,16 +458,14 @@ def test_render_path_nodes_detection_and_transformation():
                     TraversableElement(
                         tag="link",
                         attrs={"rel": "stylesheet", "href": css_path},
-                        children=[]
+                        children=[],
                     ),
                     TraversableElement(
-                        tag="script",
-                        attrs={"src": js_path},
-                        children=[]
-                    )
-                ]
+                        tag="script", attrs={"src": js_path}, children=[]
+                    ),
+                ],
             )
-        ]
+        ],
     )
 
     target = PurePosixPath("mysite/pages/index.html")
@@ -531,9 +498,7 @@ def test_render_path_nodes_with_default_strategy():
     css_path = make_path(Heading, "static/styles.css")
 
     tree = TraversableElement(
-        tag="link",
-        attrs={"rel": "stylesheet", "href": css_path},
-        children=[]
+        tag="link", attrs={"rel": "stylesheet", "href": css_path}, children=[]
     )
 
     target = PurePosixPath("mysite/components/heading/index.html")
@@ -550,9 +515,7 @@ def test_render_path_nodes_with_custom_strategy():
     css_path = make_path(Heading, "static/styles.css")
 
     tree = TraversableElement(
-        tag="link",
-        attrs={"rel": "stylesheet", "href": css_path},
-        children=[]
+        tag="link", attrs={"rel": "stylesheet", "href": css_path}, children=[]
     )
 
     # Custom strategy with site prefix
@@ -571,10 +534,7 @@ def test_render_path_nodes_optimization_no_path_elements():
     tree = Element(
         tag="div",
         attrs={},
-        children=[
-            Element(tag="p", attrs={}, children=[Text("Hello")]),
-            Text("World")
-        ]
+        children=[Element(tag="p", attrs={}, children=[Text("Hello")]), Text("World")],
     )
 
     target = PurePosixPath("index.html")
@@ -599,23 +559,17 @@ def test_render_path_nodes_mixed_tree():
                     TraversableElement(
                         tag="link",
                         attrs={"rel": "stylesheet", "href": css_path},
-                        children=[]
+                        children=[],
                     ),
-                    Element(
-                        tag="title",
-                        attrs={},
-                        children=[Text("Test Page")]
-                    )
-                ]
+                    Element(tag="title", attrs={}, children=[Text("Test Page")]),
+                ],
             ),
             Element(
                 tag="body",
                 attrs={"class": "main"},
-                children=[
-                    Element(tag="h1", attrs={}, children=[Text("Hello")])
-                ]
-            )
-        ]
+                children=[Element(tag="h1", attrs={}, children=[Text("Hello")])],
+            ),
+        ],
     )
 
     target = PurePosixPath("mysite/pages/index.html")
@@ -649,12 +603,8 @@ def test_render_path_nodes_multiple_path_attributes():
 
     tree = TraversableElement(
         tag="custom",
-        attrs={
-            "data-style": path1,
-            "data-script": path2,
-            "rel": "custom"
-        },
-        children=[]
+        attrs={"data-style": path1, "data-script": path2, "rel": "custom"},
+        children=[],
     )
 
     target = PurePosixPath("mysite/pages/index.html")
@@ -792,6 +742,7 @@ def test_integration_not_exported_from_main_module():
 
     # Verify it's only accessible from tree module
     from tdom_path.tree import TraversableElement as TreeTraversableElement
+
     assert TreeTraversableElement is not None
 
 
@@ -1228,7 +1179,7 @@ def test_integration_edge_case_empty_and_text_only_trees():
             Text("Hello"),
             Text(" "),
             Text("World"),
-        ]
+        ],
     )
 
     # Should handle text-only tree gracefully
@@ -1246,11 +1197,13 @@ def test_integration_edge_case_empty_and_text_only_trees():
     assert rendered_tree2.children[2].text == "World"
 
     # Fragment with only Text and Comment nodes
-    fragment_tree = Fragment(children=[
-        Text("Start"),
-        Comment("Comment here"),
-        Text("End"),
-    ])
+    fragment_tree = Fragment(
+        children=[
+            Text("Start"),
+            Comment("Comment here"),
+            Text("End"),
+        ]
+    )
 
     path_tree3 = make_path_nodes(fragment_tree, Heading)
     rendered_tree3 = render_path_nodes(path_tree3, target)
@@ -1265,7 +1218,6 @@ def test_integration_edge_case_empty_and_text_only_trees():
 
 def test_validate_asset_exists_with_existing_asset():
     """Test _validate_asset_exists passes for existing assets."""
-    from tdom_path.tree import _validate_asset_exists
 
     # Test with existing asset from fake_package
     asset_path = make_path(None, "tests.fixtures.fake_package:static/styles.css")
@@ -1279,7 +1231,6 @@ def test_validate_asset_exists_with_existing_asset():
 def test_validate_asset_exists_with_missing_asset():
     """Test _validate_asset_exists fails for missing assets."""
     import pytest
-    from tdom_path.tree import _validate_asset_exists
 
     # Test with non-existent asset from fake_package
     asset_path = make_path(None, "tests.fixtures.fake_package:static/nonexistent.css")
@@ -1299,7 +1250,6 @@ def test_validate_asset_exists_with_missing_asset():
 def test_validate_asset_exists_error_message_includes_component():
     """Test validation error messages include component context."""
     import pytest
-    from tdom_path.tree import _validate_asset_exists
 
     # Test with missing asset
     asset_path = make_path(None, "tests.fixtures.fake_package:static/missing.js")
@@ -1379,7 +1329,6 @@ def test_make_path_nodes_skips_validation_for_external_urls():
 
 def test_validate_asset_exists_with_package_paths():
     """Test validation works correctly with package paths."""
-    from tdom_path.tree import _validate_asset_exists
 
     # Test with valid package path
     asset_path = make_path(None, "tests.fixtures.fake_package:images/logo.png")
@@ -1391,7 +1340,6 @@ def test_validate_asset_exists_with_package_paths():
 def test_validate_asset_exists_error_includes_path_string():
     """Test error messages include the full asset path for debugging."""
     import pytest
-    from tdom_path.tree import _validate_asset_exists
 
     # Test with missing asset
     asset_path = make_path(None, "tests.fixtures.fake_package:static/notfound.css")
@@ -1422,9 +1370,7 @@ def test_traversable_element_accepts_traversable_attributes():
 
     # TraversableElement should accept Traversable values
     elem = TraversableElement(
-        tag="link",
-        attrs={"rel": "stylesheet", "href": traversable},
-        children=[]
+        tag="link", attrs={"rel": "stylesheet", "href": traversable}, children=[]
     )
 
     assert elem.attrs["href"] is traversable
@@ -1434,12 +1380,11 @@ def test_traversable_element_accepts_traversable_attributes():
 def test_transform_asset_element_returns_traversable_attributes():
     """Test _transform_asset_element creates TraversableElement with Traversable values."""
     from importlib.resources.abc import Traversable
-    from tdom_path.tree import _transform_asset_element
 
     elem = Element(
         tag="link",
         attrs={"rel": "stylesheet", "href": "static/styles.css"},
-        children=[]
+        children=[],
     )
 
     result = _transform_asset_element(elem, "href", Heading)
@@ -1453,7 +1398,6 @@ def test_transform_asset_element_returns_traversable_attributes():
 def test_render_transform_node_handles_traversable_values():
     """Test _render_transform_node converts Traversable attributes to strings."""
     from importlib.resources.abc import Traversable
-    from tdom_path.tree import _render_transform_node
 
     traversable = make_path(Heading, "static/styles.css")
     assert isinstance(traversable, Traversable)
@@ -1462,9 +1406,7 @@ def test_render_transform_node_handles_traversable_values():
     target = PurePosixPath("mysite/components/heading/index.html")
 
     node = TraversableElement(
-        tag="link",
-        attrs={"rel": "stylesheet", "href": traversable},
-        children=[]
+        tag="link", attrs={"rel": "stylesheet", "href": traversable}, children=[]
     )
 
     result = _render_transform_node(node, target, strategy)
@@ -1498,16 +1440,14 @@ def test_render_path_nodes_with_traversable_attributes():
                     TraversableElement(
                         tag="link",
                         attrs={"rel": "stylesheet", "href": css_path},
-                        children=[]
+                        children=[],
                     ),
                     TraversableElement(
-                        tag="script",
-                        attrs={"src": js_path},
-                        children=[]
-                    )
-                ]
+                        tag="script", attrs={"src": js_path}, children=[]
+                    ),
+                ],
             )
-        ]
+        ],
     )
 
     target = PurePosixPath("mysite/pages/index.html")
@@ -1569,9 +1509,9 @@ def test_mixed_traversable_and_string_attributes():
             "rel": "stylesheet",
             "href": traversable,
             "type": "text/css",
-            "media": None
+            "media": None,
         },
-        children=[]
+        children=[],
     )
 
     # Should support mixed types

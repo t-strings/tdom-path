@@ -22,6 +22,7 @@ from aria_testing import get_by_tag_name
 # End-to-End Pipeline Tests
 # ==================================================
 
+
 def test_full_pipeline_package_path_to_rendered_html():
     """Test complete pipeline: package path string -> Traversable -> rendered HTML."""
     # Step 1: Create HTML tree with package path string
@@ -143,6 +144,7 @@ def test_mixed_package_and_relative_paths_in_tree():
 # Error Handling Tests
 # ==================================================
 
+
 def test_error_handling_missing_package():
     """Test error handling when package doesn't exist."""
     tree = html(t"""
@@ -158,7 +160,9 @@ def test_error_handling_missing_package():
         make_path_nodes(tree, Heading)
 
     # Error should mention the missing package
-    assert "nonexistent_package_xyz" in str(exc_info.value) or "No module named" in str(exc_info.value)
+    assert "nonexistent_package_xyz" in str(exc_info.value) or "No module named" in str(
+        exc_info.value
+    )
 
 
 def test_error_handling_missing_asset_in_package():
@@ -203,6 +207,7 @@ def test_error_handling_missing_relative_asset():
 # ==================================================
 # Tree Walker Integration Tests
 # ==================================================
+
 
 def test_tree_walker_preserves_non_asset_content():
     """Test that tree walker preserves content that isn't being transformed."""
@@ -261,9 +266,11 @@ def test_render_strategy_with_site_prefix():
     assert "static" in link.attrs["href"]
     assert "styles.css" in link.attrs["href"]
 
+
 # ==================================================
 # Backward Compatibility Tests
 # ==================================================
+
 
 def test_backward_compatibility_package_paths():
     """Test that package path syntax works correctly."""
@@ -283,6 +290,7 @@ def test_backward_compatibility_package_paths():
 
     # All should be TraversableElements
     from aria_testing import get_all_by_tag_name
+
     links = get_all_by_tag_name(path_tree, "link")
     script = get_by_tag_name(path_tree, "script")
 
@@ -308,6 +316,7 @@ def test_external_urls_not_transformed():
     path_tree = make_path_nodes(tree, Heading)
 
     from aria_testing import get_all_by_tag_name
+
     links = get_all_by_tag_name(path_tree, "link")
 
     # First link (external) should be regular Element
@@ -324,6 +333,7 @@ def test_external_urls_not_transformed():
 # Type System Tests
 # ==================================================
 
+
 def test_traversable_type_throughout_pipeline():
     """Test that Traversable type is preserved correctly throughout pipeline."""
     # Verify make_path with package path returns Traversable
@@ -332,9 +342,7 @@ def test_traversable_type_throughout_pipeline():
 
     # Verify TraversableElement accepts Traversable
     elem = TraversableElement(
-        tag="link",
-        attrs={"rel": "stylesheet", "href": pkg_traversable},
-        children=[]
+        tag="link", attrs={"rel": "stylesheet", "href": pkg_traversable}, children=[]
     )
     assert isinstance(elem.attrs["href"], Traversable)
 
@@ -343,6 +351,7 @@ def test_traversable_type_throughout_pipeline():
     target = PurePosixPath("mysite/pages/index.html")
 
     from tdom_path.tree import _render_transform_node
+
     rendered = _render_transform_node(elem, target, strategy)
     assert isinstance(rendered, Element)
     assert not isinstance(rendered, TraversableElement)
