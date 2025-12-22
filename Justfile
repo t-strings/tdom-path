@@ -53,6 +53,22 @@ typecheck *ARGS:
 docs:
     uv run sphinx-build -b html docs docs/_build/html
 
+# Build docs with auto-reload for development
+docs-live:
+    uv run sphinx-autobuild docs docs/_build/html
+
+# Clean docs build
+docs-clean:
+    rm -rf docs/_build
+
+# Build docs and open in browser
+docs-open:
+    just docs && open docs/_build/html/index.html
+
+# Build docs with all checks
+docs-checks:
+    just docs && just lint && just fmt-check
+
 # Build sdist/wheel
 build:
     uv build
@@ -92,6 +108,10 @@ disable-pre-push:
 # Run performance benchmark
 benchmark:
     uv run python -m aria_testing.profiling.benchmark
+
+# Run slow tests (marked with @pytest.mark.slow)
+test-slow *ARGS:
+    uv run pytest -m slow {{ ARGS }}
 
 # Profile query operations
 profile-queries:

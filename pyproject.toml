@@ -12,8 +12,10 @@ dev = [
     "aria-testing>=0.1.2",
     "coverage>=7.11.2",
     "furo>=2024.8.6",
+    "linkify-it-py>=2.0.3",
     "myst-parser>=4.0.0",
     "pytest>=8.4.2",
+    "pytest-benchmark>=4.0.0",
     "pytest-cov>=4.1.0",
     "pytest-freethreaded>=0.1.0",
     "pytest-timeout>=2.4.0",
@@ -21,14 +23,18 @@ dev = [
     "ruff>=0.13.2",
     "sphinx>=8.0.0",
     "sphinx-autobuild>=2024.9.3",
+    "sphinxcontrib-mermaid>=1.2.3",
     "ty>=0.0.4",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "-p no:doctest"
+addopts = "-p no:doctest -m \"not slow\""
 pythonpath = ["examples"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
 # Free-threading safety: timeout tests to detect hangs/deadlocks
 timeout = 60
 faulthandler_timeout = 120
