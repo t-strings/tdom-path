@@ -23,7 +23,7 @@ returning `Traversable` objects that represent resource locations suitable for w
 ## Installation
 
 ```bash
-uv pip install tdom-path
+uv add install tdom-path
 ```
 
 ## Quick Start

@@ -25,7 +25,7 @@ Derived from implemented features:
 
 Using uv (recommended):
 ```bash
-uv pip install tdom-path
+uv add tdom-path
 ```
 
 Using pip:
