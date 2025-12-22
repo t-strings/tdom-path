@@ -39,19 +39,14 @@
    whatever is the correct type). Then make sure a single instance of `ResolvedAsset` can be re-used for multiple
    renderings. `M` **Complete**
 
-8. [ ] Measure Performance — Change the examples directory to use something much bigger from `../storyville/examples`
+8. [x] Measure Performance — Change the examples directory to use something much bigger from `../storyville/examples`
    and fix any tests to use it. Setup performance measurement and profiling using tests and pytest plugins to match how
    Storyville does it. Add performance measurement and profiling Justfile recipes like Storyville. Then measure
-   performance on the much-bigger example directory and look for bottlenecks. `M`
+   performance on the much-bigger example directory and look for bottlenecks. `M` **Complete**
 
-7. [ ] Documentation and Examples — Write comprehensive API documentation with type signatures, create cookbook with
+9. [x] Documentation and Examples — Write comprehensive API documentation with type signatures, create cookbook with
    common patterns (component libraries, theme development, SSG builds), and build example projects demonstrating
-   dynamic and static workflows. Include migration guides from framework-specific approaches. `L`
-
-10. [ ] Static Analysis Integration — Create path validator that checks paths against filesystem at build time,
-    implement
-    linter plugin for detecting broken asset references in code, and provide CLI tool for validating all paths in a
-    component tree. Generate actionable error messages with file locations. Test with intentionally broken paths. `L`
+   dynamic and static workflows. Include migration guides from framework-specific approaches. `L` **Complete**
 
 > Notes
 > - Order items by technical dependencies and product architecture

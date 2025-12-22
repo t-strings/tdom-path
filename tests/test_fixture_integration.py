@@ -8,9 +8,8 @@ These tests demonstrate end-to-end functionality using the fake_package fixture:
 
 from pathlib import PurePosixPath
 
-from tdom import Element, html
-from tdom_path import make_path, make_path_nodes, render_path_nodes
-from tdom_path.tree import RelativePathStrategy
+from tdom import Element
+from tdom_path import make_path_nodes, render_path_nodes
 
 
 def test_package_path_in_tree_transformation():

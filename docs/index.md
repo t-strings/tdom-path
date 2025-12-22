@@ -1,69 +1,194 @@
 # tdom-path Documentation
 
-:::{include} ../README.md
-:start-after: "## Overview"
-:end-before: "## Features"
-:::
+Component resource path utilities for web applications using Traversable paths.
 
-:::{include} ../README.md
-:start-after: "## Features"
-:end-before: "## Installation"
-:::
+## Overview
 
-:::{include} ../README.md
-:start-after: "## Installation"
-:end-before: "## Quick Start"
-:::
+`tdom-path` provides utilities for resolving component static assets (CSS, JS, images) in component-based web applications. It supports both package assets (using `package:path` syntax) and relative paths, returning `Traversable` objects that represent resource locations suitable for web rendering.
+
+### Key Features
+
+Derived from implemented features:
+
+- **Package Asset Support** - Reference assets from installed packages using `package:path` syntax
+- **Relative Path Rendering** - Calculate relative paths from target to source for HTML output
+- **Framework Independence** - Same components work in Flask, Django, FastAPI, Sphinx
+- **Type Safety** - Comprehensive type hints with IDE autocomplete support
+- **Asset Validation** - Automatic fail-fast validation with clear error messages
+- **SSG Integration** - Asset collection via `RelativePathStrategy.collected_assets`
+- **Decorator Support** - `@path_nodes` for automatic tree transformation
+- **Immutable Transformations** - Tree rewriting creates new nodes without mutation
+- **External URL Detection** - Automatically skips http://, https://, mailto:, etc.
+- **Cross-Platform Paths** - PurePosixPath ensures consistent web paths
+
+## Installation
+
+Using uv (recommended):
+```bash
+uv pip install tdom-path
+```
+
+Using pip:
+```bash
+pip install tdom-path
+```
+
+**Requirements:**
+- Python 3.14+
+- tdom >= 0.1.13
 
 ## Quick Start
 
-:::{include} ../README.md
-:start-after: "### Package Asset Support"
-:end-before: "### Relative Path Support"
-:::
+### Basic Usage with Package Paths
 
-:::{include} ../README.md
-:start-after: "### Relative Path Support"
-:end-before: "### Basic Path Resolution"
-:::
+```python
+from tdom_path import make_path
 
-:::{include} ../README.md
-:start-after: "### Basic Path Resolution"
-:end-before: "### Tree Rewriting with Decorator"
-:::
+# Reference asset from installed package
+css_path = make_path(None, "bootstrap:dist/css/bootstrap.css")
+print(css_path.is_file())  # True
+```
 
-## API Reference
+### Component with Relative Paths
 
-For detailed API documentation, see our [API Reference Guide](reference/api-reference).
+```python
+from tdom import Element
+from tdom_path import path_nodes
+from mysite.components.heading import Heading
 
-## Performance Benchmarks
+class Heading:
+    @path_nodes
+    def __html__(self) -> Element:
+        return Element("head", children=[
+            Element("link", {"href": "static/styles.css"}),
+        ])
 
-:::{include} ../README.md
-:start-after: "## Performance Benchmarks"
-:end-before: "### Running Benchmarks"
-:::
+# Asset path automatically resolved
+heading = Heading()
+tree = heading.__html__()
+```
+
+### Complete Pipeline
+
+```python
+from pathlib import PurePosixPath
+from tdom_path import make_path_nodes, render_path_nodes
+
+# Transform and render
+tree = heading.__html__()
+path_tree = make_path_nodes(tree, heading)
+
+target = PurePosixPath("pages/about.html")
+rendered = render_path_nodes(path_tree, target)
+
+html = str(rendered)
+```
+
+## Documentation Sections
 
 ```{toctree}
 :maxdepth: 2
-:caption: Contents
+:caption: Guides
 
-guides/index
-reference/index
+guides/core-concepts
+guides/cookbook
+guides/framework-integration
+guides/advanced
+guides/performance
 ```
 
-## Project Information
+```{toctree}
+:maxdepth: 2
+:caption: Reference
 
-:::{include} ../README.md
-:start-after: "## Requirements"
-:end-before: "## Testing"
-:::
+reference/api-reference
+reference/specifications
+```
 
-:::{include} ../README.md
-:start-after: "## Testing"
-:end-before: "## Design Philosophy"
-:::
+## Path Rewriting Lifecycle
 
-:::{include} ../README.md
-:start-after: "## Design Philosophy"
-:end-before: "## License"
-:::
+The complete lifecycle from component to rendered HTML:
+
+```mermaid
+flowchart TD
+    A[Component with Asset References] --> B[make_path_nodes]
+    B --> C[Tree with Traversable Instances]
+    C --> D[render_path_nodes]
+    D --> E[Tree with Relative Path Strings]
+    E --> F[HTML Output]
+
+    style A fill:#e1f5ff
+    style C fill:#fff4e1
+    style E fill:#e7f5e1
+    style F fill:#ffe1e1
+```
+
+## Function Relationships
+
+How data flows between the three core functions:
+
+```mermaid
+flowchart LR
+    subgraph Input
+        STR[String Paths<br/>static/styles.css]
+    end
+
+    subgraph Phase1[Phase 1: Path Resolution]
+        MP[make_path]
+        STR --> MP
+        MP --> TRAV[Traversable Instance]
+    end
+
+    subgraph Phase2[Phase 2: Tree Transformation]
+        MPN[make_path_nodes]
+        TREE1[VDOM Tree<br/>with String Paths] --> MPN
+        MPN --> TREE2[VDOM Tree<br/>with Traversable]
+        TRAV -.used by.-> MPN
+    end
+
+    subgraph Phase3[Phase 3: Path Rendering]
+        RPN[render_path_nodes]
+        TREE2 --> RPN
+        TARGET[Target Path<br/>pages/about.html] --> RPN
+        RPN --> TREE3[VDOM Tree<br/>with Relative Paths]
+    end
+
+    subgraph Output
+        TREE3 --> HTML[HTML String<br/>../static/styles.css]
+    end
+
+    style STR fill:#e1f5ff
+    style TRAV fill:#fff4e1
+    style TREE2 fill:#fff4e1
+    style TREE3 fill:#e7f5e1
+    style HTML fill:#ffe1e1
+```
+
+## Example Projects
+
+Complete working examples for different frameworks:
+
+- [Flask Example](https://github.com/your-repo/tdom-path/tree/main/examples/flask-example) - Dynamic server with component rendering
+- Django Example - Template integration with Django views (see examples directory)
+- FastAPI Example - Async routes with component rendering (see examples directory)
+- Sphinx Example - SSG build with asset collection (see examples directory)
+
+## Next Steps
+
+- Read [Core Concepts](guides/core-concepts.md) to understand the architecture
+- Explore [Cookbook Patterns](guides/cookbook.md) for common use cases
+- Review [Framework Integration](guides/framework-integration.md) for specific frameworks
+- Check [API Reference](reference/api-reference.md) for detailed function documentation
+
+## Requirements
+
+- Python 3.14+
+- tdom >= 0.1.13
+
+## Contributing
+
+Contributions are welcome! Please see the project repository for contribution guidelines.
+
+## License
+
+[License information will be added]

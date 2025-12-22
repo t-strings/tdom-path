@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import wraps
 from importlib.resources.abc import Traversable
+
 # Use PurePosixPath instead of PurePath to ensure cross-platform consistency
 # Web paths must always use forward slashes (/), never backslashes (\)
 # PurePosixPath guarantees POSIX-style paths regardless of OS
@@ -77,7 +78,7 @@ class _TraversableWithPath(Traversable):
         new_path = self._module_path / child
         return _TraversableWithPath(result, new_path)
 
-    def open(self, mode='r', *args, **kwargs):
+    def open(self, mode="r", *args, **kwargs):
         return self._traversable.open(mode, *args, **kwargs)
 
     def read_bytes(self):
@@ -94,6 +95,7 @@ class _TraversableWithPath(Traversable):
         result = self._traversable.joinpath(*descendants)
         new_path = self._module_path.joinpath(*descendants)
         return _TraversableWithPath(result, new_path)
+
 
 # Type variables for decorator
 P = ParamSpec("P")
@@ -314,7 +316,9 @@ def _transform_asset_element(
 
     # Calculate module-relative path for the asset
     # This will be used for relative path calculations during rendering
-    module_name = component.__module__ if hasattr(component, "__module__") else "unknown"
+    module_name = (
+        component.__module__ if hasattr(component, "__module__") else "unknown"
+    )
     parts = module_name.split(".")
     if len(parts) >= 2 and parts[-1] == parts[-2]:
         module_name = ".".join(parts[:-1])
@@ -582,9 +586,7 @@ def _render_transform_node(
         return node
 
     # Check if any attribute contains a Traversable
-    has_path_attr = any(
-        isinstance(value, Traversable) for value in node.attrs.values()
-    )
+    has_path_attr = any(isinstance(value, Traversable) for value in node.attrs.values())
 
     # If no Traversable attributes, return unchanged
     if not has_path_attr:
@@ -606,7 +608,7 @@ def _render_transform_node(
 
                 # Add to collected_assets set (deduplicates automatically)
                 # Only add if strategy has collected_assets attribute (e.g., RelativePathStrategy)
-                if hasattr(strategy, 'collected_assets'):
+                if hasattr(strategy, "collected_assets"):
                     strategy.collected_assets.add(asset_ref)  # type: ignore[attr-defined]
 
             # Calculate string path using strategy

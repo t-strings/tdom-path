@@ -6,11 +6,15 @@ attribute on RelativePathStrategy.
 
 from pathlib import PurePosixPath
 
-import pytest
 from aria_testing import get_by_tag_name
-from tdom import Element, html
+from tdom import html
 from mysite.components.heading import Heading
-from tdom_path.tree import AssetReference, RelativePathStrategy, make_path_nodes, render_path_nodes
+from tdom_path.tree import (
+    AssetReference,
+    RelativePathStrategy,
+    make_path_nodes,
+    render_path_nodes,
+)
 from tdom_path.webpath import make_path
 
 
@@ -62,7 +66,7 @@ def test_strategy_collected_assets():
 def test_rendering_collects_assets():
     """Test assets are collected during rendering with proper deduplication."""
     # Single asset collected
-    tree = html(t'''<link href="static/styles.css">''')
+    tree = html(t"""<link href="static/styles.css">""")
     path_tree = make_path_nodes(tree, Heading)
     strategy = RelativePathStrategy()
     target = PurePosixPath("mysite/pages/index.html")
@@ -70,24 +74,26 @@ def test_rendering_collects_assets():
 
     assert len(strategy.collected_assets) == 1
     collected_ref = next(iter(strategy.collected_assets))
-    assert collected_ref.module_path == PurePosixPath("mysite/components/heading/static/styles.css")
+    assert collected_ref.module_path == PurePosixPath(
+        "mysite/components/heading/static/styles.css"
+    )
 
     # Rendering still produces string paths
     link = get_by_tag_name(result, "link")
     assert isinstance(link.attrs["href"], str)
 
     # Multiple assets in single rendering
-    tree2 = html(t'''
+    tree2 = html(t"""
         <link href="static/styles.css">
         <script src="static/app.js"></script>
-    ''')
+    """)
     path_tree2 = make_path_nodes(tree2, Heading)
     strategy2 = RelativePathStrategy()
     render_path_nodes(path_tree2, target, strategy2)
     assert len(strategy2.collected_assets) == 2
 
     # Multiple renderings accumulate assets
-    tree3 = html(t'''<script src="static/theme.css"></script>''')
+    tree3 = html(t"""<script src="static/theme.css"></script>""")
     path_tree3 = make_path_nodes(tree3, Heading)
     render_path_nodes(path_tree3, target, strategy2)
     assert len(strategy2.collected_assets) == 3
@@ -102,7 +108,7 @@ def test_rendering_collects_assets():
 def test_collection_edge_cases():
     """Test collection edge cases: external URLs and site_prefix."""
     # External URLs should not be collected
-    tree = html(t'''<link href="https://external.com/styles.css">''')
+    tree = html(t"""<link href="https://external.com/styles.css">""")
     path_tree = make_path_nodes(tree, Heading)
     strategy = RelativePathStrategy()
     target = PurePosixPath("mysite/pages/index.html")
@@ -110,7 +116,7 @@ def test_collection_edge_cases():
     assert len(strategy.collected_assets) == 0  # External URL not collected
 
     # site_prefix doesn't affect collection
-    tree2 = html(t'''<link href="static/styles.css">''')
+    tree2 = html(t"""<link href="static/styles.css">""")
     path_tree2 = make_path_nodes(tree2, Heading)
     strategy2 = RelativePathStrategy(site_prefix=PurePosixPath("mysite/static"))
     result = render_path_nodes(path_tree2, target, strategy2)
@@ -126,10 +132,10 @@ def test_collection_edge_cases():
 
 def test_collected_assets_for_build_tools():
     """Test end-to-end workflow for build tools: collect assets and read contents."""
-    tree = html(t'''
+    tree = html(t"""
         <link href="static/styles.css">
         <script src="static/app.js"></script>
-    ''')
+    """)
 
     path_tree = make_path_nodes(tree, Heading)
     strategy = RelativePathStrategy()
@@ -158,10 +164,10 @@ def test_build_tool_simulation():
     from pathlib import Path
     import tempfile
 
-    tree = html(t'''
+    tree = html(t"""
         <link href="static/styles.css">
         <script src="static/app.js"></script>
-    ''')
+    """)
 
     path_tree = make_path_nodes(tree, Heading)
     strategy = RelativePathStrategy()
