@@ -54,6 +54,34 @@ def _detect_path_type(asset: str) -> Literal["package", "relative"]:
     return "package" if ":" in asset else "relative"
 
 
+def _normalize_module_name(module_name: str) -> str:
+    """Normalize module name by stripping repeated final component.
+
+    If a module ends with a repeated component (e.g., mysite.components.heading.heading),
+    strip the last component to get the package path (mysite.components.heading).
+
+    This pattern occurs when a module defines a class with the same name as its file.
+
+    Args:
+        module_name: The module name to normalize
+
+    Returns:
+        Normalized module name with repeated component removed if present
+
+    Examples:
+        >>> _normalize_module_name("mysite.components.heading.heading")
+        'mysite.components.heading'
+        >>> _normalize_module_name("mysite.components.heading")
+        'mysite.components.heading'
+        >>> _normalize_module_name("simple")
+        'simple'
+    """
+    parts = module_name.split(".")
+    if len(parts) >= 2 and parts[-1] == parts[-2]:
+        return ".".join(parts[:-1])
+    return module_name
+
+
 def _parse_package_path(asset: str) -> tuple[str, str]:
     """Parse a package path into package name and resource path.
 
@@ -176,13 +204,7 @@ def make_path(component: Any, asset: str) -> Traversable:
             msg = f"Object {component!r} has no __module__ attribute"
             raise TypeError(msg)
         # Resolve relative path using component's module
-        module_name = component.__module__
-
-        # If the module ends with a repeated component (e.g., mysite.components.heading.heading),
-        # strip the last component to get the package path
-        parts = module_name.split(".")
-        if len(parts) >= 2 and parts[-1] == parts[-2]:
-            module_name = ".".join(parts[:-1])
+        module_name = _normalize_module_name(component.__module__)
 
         # Get the component module's Traversable root
         module_root = files(module_name)
@@ -191,15 +213,10 @@ def make_path(component: Any, asset: str) -> Traversable:
         # Handle paths with ./ prefix by stripping it
         clean_asset = asset.lstrip("./")
 
-        # Split path and navigate
+        # Split path and navigate using Traversable's / operator
         result = module_root
         for part in clean_asset.split("/"):
-            if part and part != "..":
-                result = result / part
-            elif part == "..":
-                # Handle parent directory navigation
-                # Note: Traversable doesn't have a .parent, so we'll need to reconstruct
-                # For now, we'll just navigate as-is and let the Traversable handle it
+            if part:  # Skip empty parts
                 result = result / part
 
         return result

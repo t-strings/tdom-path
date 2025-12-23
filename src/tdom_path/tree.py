@@ -14,7 +14,7 @@ from pathlib import PurePosixPath
 from typing import Any, ParamSpec, Protocol, TypeGuard
 
 from tdom import Element, Fragment, Node
-from tdom_path.webpath import make_path
+from tdom_path.webpath import make_path, _normalize_module_name
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,52 +49,23 @@ class AssetReference:
     module_path: PurePosixPath
 
 
-class _TraversableWithPath(Traversable):
-    """Internal wrapper that stores module-relative path with Traversable.
+@dataclass(frozen=True, slots=True)
+class _TraversableWithPath:
+    """Pairs a Traversable with its module-relative path.
 
-    This wrapper is used internally to attach module-relative path information
-    to Traversable instances when they're stored as element attributes. The
-    module path is used for relative path calculations during rendering.
+    This simple container stores both the filesystem Traversable and the
+    module-relative path needed for relative path calculation and asset collection.
+
+    Attributes:
+        traversable: The Traversable instance for file access
+        module_path: Module-relative path (e.g., "mysite/components/heading/static/styles.css")
     """
-
-    def __init__(self, traversable: Traversable, module_path: PurePosixPath):
-        self._traversable = traversable
-        self._module_path = module_path
+    traversable: Traversable
+    module_path: PurePosixPath
 
     def __str__(self) -> str:
-        return str(self._module_path)
-
-    def is_dir(self) -> bool:
-        return self._traversable.is_dir()
-
-    def is_file(self) -> bool:
-        return self._traversable.is_file()
-
-    def iterdir(self):
-        return self._traversable.iterdir()
-
-    def __truediv__(self, child):
-        result = self._traversable / child
-        new_path = self._module_path / child
-        return _TraversableWithPath(result, new_path)
-
-    def open(self, mode="r", *args, **kwargs):
-        return self._traversable.open(mode, *args, **kwargs)
-
-    def read_bytes(self):
-        return self._traversable.read_bytes()
-
-    def read_text(self, encoding=None):
-        return self._traversable.read_text(encoding)
-
-    @property
-    def name(self):
-        return self._traversable.name
-
-    def joinpath(self, *descendants):
-        result = self._traversable.joinpath(*descendants)
-        new_path = self._module_path.joinpath(*descendants)
-        return _TraversableWithPath(result, new_path)
+        """Return the module-relative path as a string."""
+        return str(self.module_path)
 
 
 # Type variables for decorator
@@ -140,7 +111,7 @@ class TraversableElement(Element):
         '<link rel="stylesheet" href="mysite/components/heading/static/styles.css" />'
     """
 
-    attrs: dict[str, str | Traversable | None]
+    attrs: dict[str, str | Traversable | _TraversableWithPath | None]
 
 
 def _should_process_href(href: str | None) -> TypeGuard[str]:
@@ -319,9 +290,7 @@ def _transform_asset_element(
     module_name = (
         component.__module__ if hasattr(component, "__module__") else "unknown"
     )
-    parts = module_name.split(".")
-    if len(parts) >= 2 and parts[-1] == parts[-2]:
-        module_name = ".".join(parts[:-1])
+    module_name = _normalize_module_name(module_name)
     module_web_path = module_name.replace(".", "/")
     module_path = PurePosixPath(module_web_path) / attr_value.lstrip("./")
 
@@ -331,8 +300,8 @@ def _transform_asset_element(
     # Store the wrapped asset path
     attrs[attr_name] = wrapped_path
 
-    # Check if any attr value is Traversable - if so, use TraversableElement
-    has_path = any(isinstance(v, Traversable) for v in attrs.values())
+    # Check if any attr value is Traversable or _TraversableWithPath - if so, use TraversableElement
+    has_path = any(isinstance(v, (Traversable, _TraversableWithPath)) for v in attrs.values())
 
     if has_path:
         return TraversableElement(
@@ -521,13 +490,13 @@ class RelativePathStrategy:
             >>> strategy.calculate_path(source, target)
             '../../components/heading/static/styles.css'
         """
-        # Convert Traversable to PurePosixPath for calculation
-        # If it's wrapped with _TraversableWithPath, str() gives module-relative path
-        # Otherwise, we need to extract module-relative path from absolute path
+        # Convert to PurePosixPath for calculation
+        # If it's _TraversableWithPath, extract the module_path directly
         if isinstance(source, _TraversableWithPath):
-            source_path = PurePosixPath(str(source))
+            source_path = source.module_path
         else:
-            # Fallback for unwrapped Traversable: extract module-relative path
+            # Fallback for bare Traversable: extract module-relative path from absolute path
+            # This is a best-effort approach - won't work for all project structures
             # Absolute path format: /.../.../examples/mysite/components/heading/static/styles.css
             # We want: mysite/components/heading/static/styles.css
             abs_path_str = str(source)
@@ -585,33 +554,33 @@ def _render_transform_node(
     if not isinstance(node, TraversableElement):
         return node
 
-    # Check if any attribute contains a Traversable
-    has_path_attr = any(isinstance(value, Traversable) for value in node.attrs.values())
+    # Check if any attribute contains a Traversable or _TraversableWithPath
+    has_path_attr = any(isinstance(value, (Traversable, _TraversableWithPath)) for value in node.attrs.values())
 
     # If no Traversable attributes, return unchanged
     if not has_path_attr:
         return node
 
-    # Transform Traversable attributes to strings using strategy
+    # Transform Traversable/wrapped attributes to strings using strategy
     new_attrs: dict[str, str | None] = {}
     for attr_name, attr_value in node.attrs.items():
-        if isinstance(attr_value, Traversable):
-            # Collect asset if it's a _TraversableWithPath wrapper
-            # This happens BEFORE converting to string path
-            if isinstance(attr_value, _TraversableWithPath):
-                # Extract source Traversable and module path from wrapper
-                source = attr_value._traversable
-                module_path = attr_value._module_path
+        if isinstance(attr_value, _TraversableWithPath):
+            # Extract source Traversable and module path from NamedTuple
+            source = attr_value.traversable
+            module_path = attr_value.module_path
 
-                # Create AssetReference and add to strategy's collected_assets
-                asset_ref = AssetReference(source=source, module_path=module_path)
+            # Create AssetReference and add to strategy's collected_assets
+            asset_ref = AssetReference(source=source, module_path=module_path)
 
-                # Add to collected_assets set (deduplicates automatically)
-                # Only add if strategy has collected_assets attribute (e.g., RelativePathStrategy)
-                if hasattr(strategy, "collected_assets"):
-                    strategy.collected_assets.add(asset_ref)  # type: ignore[attr-defined]
+            # Add to collected_assets set (deduplicates automatically)
+            # Only add if strategy has collected_assets attribute (e.g., RelativePathStrategy)
+            if hasattr(strategy, "collected_assets"):
+                strategy.collected_assets.add(asset_ref)  # type: ignore[attr-defined]
 
             # Calculate string path using strategy
+            new_attrs[attr_name] = strategy.calculate_path(attr_value, target)
+        elif isinstance(attr_value, Traversable):
+            # Bare Traversable (shouldn't happen in normal use, but handle it)
             new_attrs[attr_name] = strategy.calculate_path(attr_value, target)
         else:
             # Preserve non-Traversable attributes as-is

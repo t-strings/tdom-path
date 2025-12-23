@@ -8,6 +8,7 @@ Focus on core functionality:
 - Decorator support for function and class components
 """
 
+import pytest
 from pathlib import PurePosixPath
 from importlib.resources.abc import Traversable
 
@@ -24,8 +25,15 @@ from tdom_path.tree import (
     render_path_nodes,
     RelativePathStrategy,
     _validate_asset_exists,
+    _TraversableWithPath,
 )
 from tdom_path.webpath import make_path
+
+
+# Helper to check if value is traversable or wrapped traversable
+def _is_traversable_or_wrapped(value) -> bool:
+    """Check if value is a Traversable or _TraversableWithPath."""
+    return isinstance(value, (Traversable, _TraversableWithPath))
 
 
 # ============================================================================
@@ -33,52 +41,35 @@ from tdom_path.webpath import make_path
 # ============================================================================
 
 
-def test_should_process_href_with_local_paths():
-    """Test _should_process_href returns True for local paths."""
-
-    # Local relative paths should be processed
-    assert _should_process_href("static/styles.css") is True
-    assert _should_process_href("./static/styles.css") is True
-    assert _should_process_href("../shared/styles.css") is True
-    assert _should_process_href("assets/images/logo.png") is True
-
-
-def test_should_process_href_with_external_urls():
-    """Test _should_process_href returns False for external URLs."""
-
+@pytest.mark.parametrize("href,expected", [
+    # Local paths should be processed
+    ("static/styles.css", True),
+    ("./static/styles.css", True),
+    ("../shared/styles.css", True),
+    ("assets/images/logo.png", True),
     # External URLs should NOT be processed
-    assert _should_process_href("http://example.com/style.css") is False
-    assert _should_process_href("https://cdn.example.com/style.css") is False
-    assert _should_process_href("//cdn.example.com/style.css") is False
-    assert (
-        _should_process_href("HTTP://EXAMPLE.COM/STYLE.CSS") is False
-    )  # Case insensitive
-
-
-def test_should_process_href_with_special_schemes():
-    """Test _should_process_href returns False for special schemes."""
-
+    ("http://example.com/style.css", False),
+    ("https://cdn.example.com/style.css", False),
+    ("//cdn.example.com/style.css", False),
+    ("HTTP://EXAMPLE.COM/STYLE.CSS", False),  # Case insensitive
     # Special schemes should NOT be processed
-    assert _should_process_href("mailto:user@example.com") is False
-    assert _should_process_href("tel:+1234567890") is False
-    assert _should_process_href("data:image/png;base64,abc123") is False
-    assert _should_process_href("javascript:void(0)") is False
-    assert _should_process_href("#section") is False
-    assert _should_process_href("MAILTO:USER@EXAMPLE.COM") is False  # Case insensitive
-
-
-def test_should_process_href_with_empty_values():
-    """Test _should_process_href returns False for empty/None values."""
-
-    # Empty or None values should NOT be processed
-    assert _should_process_href(None) is False
-    assert _should_process_href("") is False
+    ("mailto:user@example.com", False),
+    ("tel:+1234567890", False),
+    ("data:image/png;base64,abc123", False),
+    ("javascript:void(0)", False),
+    ("#section", False),
+    ("MAILTO:USER@EXAMPLE.COM", False),  # Case insensitive
+    # Empty/None values should NOT be processed
+    (None, False),
+    ("", False),
+])
+def test_should_process_href(href, expected):
+    """Test _should_process_href with various input types."""
+    assert _should_process_href(href) is expected
 
 
 def test_should_process_href_with_non_string():
     """Test _should_process_href returns False for non-string values."""
-
-    # Non-string values should NOT be processed
     assert _should_process_href(123) is False  # type: ignore
     assert _should_process_href(PurePosixPath("static/style.css")) is False  # type: ignore
 
@@ -96,7 +87,7 @@ def test_transform_asset_element_with_local_href():
 
     # Should return TraversableElement with Traversable href
     assert isinstance(result, TraversableElement)
-    assert isinstance(result.attrs["href"], Traversable)
+    assert _is_traversable_or_wrapped(result.attrs["href"])
     assert str(result.attrs["href"]) == "mysite/components/heading/static/styles.css"
     # Other attributes preserved
     assert result.attrs["rel"] == "stylesheet"
@@ -131,7 +122,7 @@ def test_transform_asset_element_with_script_src():
 
     # Should return TraversableElement with Traversable src
     assert isinstance(result, TraversableElement)
-    assert isinstance(result.attrs["src"], Traversable)
+    assert _is_traversable_or_wrapped(result.attrs["src"])
     assert str(result.attrs["src"]) == "mysite/components/heading/static/app.js"
     # Other attributes preserved
     assert result.attrs["defer"] == "true"
@@ -355,7 +346,7 @@ def test_path_element_behavior():
     )
 
     assert elem.tag == "link"
-    assert isinstance(elem.attrs["href"], Traversable)
+    assert _is_traversable_or_wrapped(elem.attrs["href"])
     assert elem.attrs["href"] == css_path
     assert isinstance(elem.attrs["rel"], str)
     assert elem.attrs["media"] is None
@@ -656,13 +647,13 @@ def test_tree_walker_element_type_creation():
     # Local link should be TraversableElement with full module-relative path
     local_link = links[1]
     assert isinstance(local_link, TraversableElement)
-    assert isinstance(local_link.attrs["href"], Traversable)
+    assert _is_traversable_or_wrapped(local_link.attrs["href"])
     assert str(local_link.attrs["href"]) == "mysite/components/heading/static/local.css"
 
     # Script should be TraversableElement with full module-relative path
     script = get_by_tag_name(new_tree, "script")
     assert isinstance(script, TraversableElement)
-    assert isinstance(script.attrs["src"], Traversable)
+    assert _is_traversable_or_wrapped(script.attrs["src"])
     assert str(script.attrs["src"]) == "mysite/components/heading/static/script.js"
 
     # Parent elements without asset transformations should be regular Elements
@@ -727,7 +718,7 @@ def test_integration_decorator_with_traversable_element():
     link = get_by_tag_name(result, "link")
 
     assert isinstance(link, TraversableElement)
-    assert isinstance(link.attrs["href"], Traversable)
+    assert _is_traversable_or_wrapped(link.attrs["href"])
     # Verify full module-relative path includes test function's module
     assert "static/styles.css" in str(link.attrs["href"])
 
@@ -800,7 +791,7 @@ def test_make_path_nodes_preserves_other_attrs():
 
     link = get_by_tag_name(new_tree, "link")
     # Verify href transformed to full module-relative path
-    assert isinstance(link.attrs["href"], Traversable)
+    assert _is_traversable_or_wrapped(link.attrs["href"])
     assert str(link.attrs["href"]) == "mysite/components/heading/static/styles.css"
     # Verify all other attributes preserved
     assert link.attrs["rel"] == "stylesheet"
@@ -840,7 +831,7 @@ def test_path_nodes_decorator_components():
     func_result = function_component()
     link = get_by_tag_name(func_result, "link")
     assert isinstance(link, TraversableElement)
-    assert isinstance(link.attrs["href"], Traversable)
+    assert _is_traversable_or_wrapped(link.attrs["href"])
     # Verify full module-relative path includes test module
     assert "test_tree" in str(link.attrs["href"])
     assert "static/styles.css" in str(link.attrs["href"])
@@ -850,7 +841,7 @@ def test_path_nodes_decorator_components():
     class_result = component()
     script = get_by_tag_name(class_result, "script")
     assert isinstance(script, TraversableElement)
-    assert isinstance(script.attrs["src"], Traversable)
+    assert _is_traversable_or_wrapped(script.attrs["src"])
     # Verify full module-relative path includes test module
     assert "test_tree" in str(script.attrs["src"])
     assert "static/script.js" in str(script.attrs["src"])
@@ -908,8 +899,8 @@ def test_integration_full_pipeline_make_to_render():
     script = get_by_tag_name(path_tree, "script")
     assert isinstance(link, TraversableElement)
     assert isinstance(script, TraversableElement)
-    assert isinstance(link.attrs["href"], Traversable)
-    assert isinstance(script.attrs["src"], Traversable)
+    assert _is_traversable_or_wrapped(link.attrs["href"])
+    assert _is_traversable_or_wrapped(script.attrs["src"])
 
     # Step 3: Render TraversableElement nodes to Element with relative strings (render_path_nodes)
     target = PurePosixPath("mysite/pages/about.html")
@@ -1364,7 +1355,7 @@ def test_traversable_element_accepts_traversable_attributes():
     traversable = make_path(Heading, "static/styles.css")
 
     # Verify it's a Traversable (not just PurePosixPath)
-    assert isinstance(traversable, Traversable)
+    assert _is_traversable_or_wrapped(traversable)
 
     # TraversableElement should accept Traversable values
     elem = TraversableElement(
@@ -1372,7 +1363,7 @@ def test_traversable_element_accepts_traversable_attributes():
     )
 
     assert elem.attrs["href"] is traversable
-    assert isinstance(elem.attrs["href"], Traversable)
+    assert _is_traversable_or_wrapped(elem.attrs["href"])
 
 
 def test_transform_asset_element_returns_traversable_attributes():
@@ -1389,7 +1380,7 @@ def test_transform_asset_element_returns_traversable_attributes():
 
     # Should return TraversableElement with Traversable href
     assert isinstance(result, TraversableElement)
-    assert isinstance(result.attrs["href"], Traversable)
+    assert _is_traversable_or_wrapped(result.attrs["href"])
     assert str(result.attrs["href"]) == "mysite/components/heading/static/styles.css"
 
 
@@ -1398,7 +1389,7 @@ def test_render_transform_node_handles_traversable_values():
     from importlib.resources.abc import Traversable
 
     traversable = make_path(Heading, "static/styles.css")
-    assert isinstance(traversable, Traversable)
+    assert _is_traversable_or_wrapped(traversable)
 
     strategy = RelativePathStrategy()
     target = PurePosixPath("mysite/components/heading/index.html")
@@ -1424,8 +1415,8 @@ def test_render_path_nodes_with_traversable_attributes():
     css_path = make_path(Heading, "static/styles.css")
     js_path = make_path(Heading, "static/app.js")
 
-    assert isinstance(css_path, Traversable)
-    assert isinstance(js_path, Traversable)
+    assert _is_traversable_or_wrapped(css_path)
+    assert _is_traversable_or_wrapped(js_path)
 
     tree = Element(
         tag="html",
@@ -1470,7 +1461,7 @@ def test_relative_path_strategy_accepts_traversable_source():
 
     # Get Traversable instance
     source = make_path(Heading, "static/styles.css")
-    assert isinstance(source, Traversable)
+    assert _is_traversable_or_wrapped(source)
 
     target = PurePosixPath("mysite/components/heading/index.html")
 
@@ -1489,7 +1480,7 @@ def test_package_path_returns_traversable():
     pkg_path = make_path(None, "tests.fixtures.fake_package:static/styles.css")
 
     # Should return Traversable
-    assert isinstance(pkg_path, Traversable)
+    assert _is_traversable_or_wrapped(pkg_path)
     # Should be file-like
     assert pkg_path.is_file()
 
@@ -1499,7 +1490,7 @@ def test_mixed_traversable_and_string_attributes():
     from importlib.resources.abc import Traversable
 
     traversable = make_path(Heading, "static/styles.css")
-    assert isinstance(traversable, Traversable)
+    assert _is_traversable_or_wrapped(traversable)
 
     elem = TraversableElement(
         tag="link",
@@ -1513,7 +1504,7 @@ def test_mixed_traversable_and_string_attributes():
     )
 
     # Should support mixed types
-    assert isinstance(elem.attrs["href"], Traversable)
+    assert _is_traversable_or_wrapped(elem.attrs["href"])
     assert isinstance(elem.attrs["rel"], str)
     assert isinstance(elem.attrs["type"], str)
     assert elem.attrs["media"] is None
@@ -1538,7 +1529,7 @@ def test_end_to_end_package_path_with_traversable():
 
     # Should have Traversable attribute
     assert isinstance(link, TraversableElement)
-    assert isinstance(link.attrs["href"], Traversable)
+    assert _is_traversable_or_wrapped(link.attrs["href"])
 
     # Render to string
     target = PurePosixPath("mysite/pages/index.html")
