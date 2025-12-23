@@ -25,7 +25,7 @@ Derived from implemented features:
 
 Using uv (recommended):
 ```bash
-uv add tdom-path
+uv pip install tdom-path
 ```
 
 Using pip:
@@ -168,7 +168,7 @@ flowchart LR
 
 Complete working examples for different frameworks:
 
-- [Flask Example](https://github.com/your-repo/tdom-path/tree/main/examples/flask-example) - Dynamic server with component rendering
+- [Flask Example](../examples/flask-example/) - Dynamic server with component rendering
 - Django Example - Template integration with Django views (see examples directory)
 - FastAPI Example - Async routes with component rendering (see examples directory)
 - Sphinx Example - SSG build with asset collection (see examples directory)
