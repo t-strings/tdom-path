@@ -263,4 +263,4 @@ Validation ensures build-time detection of broken asset references, preventing r
 
 - Explore [API Reference](../reference/api-reference.md) for detailed function documentation
 - See [Cookbook Patterns](cookbook.md) for common use cases
-- Review [Framework Integration](framework-integration.md) for Flask, Django, FastAPI, and Sphinx examples
+  +++++++ REPLACE

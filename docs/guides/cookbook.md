@@ -116,49 +116,26 @@ class ThemeBase:
         ])
 ```
 
-### Using Theme in Flask Application
+### Using the Theme
 
 ```python
-from flask import Flask
 from mytheme import ThemeBase
 from tdom_path import make_path_nodes, render_path_nodes
 from pathlib import PurePosixPath
 
-app = Flask(__name__)
+# Theme works in any web framework
+theme = ThemeBase()
+tree = theme.__html__()
+# Assets resolved via package paths
 
-@app.route("/")
-def index():
-    # Theme works identically in Flask
-    theme = ThemeBase()
-    tree = theme.__html__()
-    # Assets resolved via package paths
-
-    target = PurePosixPath("templates/index.html")
-    rendered = render_path_nodes(tree, target)
-    return str(rendered)
-```
-
-### Using Same Theme in Django
-
-```python
-from django.http import HttpResponse
-from mytheme import ThemeBase
-from tdom_path import make_path_nodes, render_path_nodes
-from pathlib import PurePosixPath
-
-def index(request):
-    # Identical theme code works in Django
-    theme = ThemeBase()
-    tree = theme.__html__()
-
-    target = PurePosixPath("templates/index.html")
-    rendered = render_path_nodes(tree, target)
-    return HttpResponse(str(rendered))
+target = PurePosixPath("templates/index.html")
+rendered = render_path_nodes(tree, target)
+html_output = str(rendered)
 ```
 
 ### Benefits
 
-- **Framework Independence** - Same theme works in Flask, Django, FastAPI
+- **Framework Independence** - Same theme works in any web framework
 - **Package Distribution** - Distribute themes as Python packages
 - **Asset Bundling** - All theme assets packaged together
 - **No Framework Lock-in** - Switch frameworks without rewriting themes
@@ -204,173 +181,12 @@ for asset_ref in strategy.collected_assets:
     dest_path.write_bytes(asset_ref.source.read_bytes())
 ```
 
-### Sphinx Integration
-
-```python
-# docs/conf.py
-from pathlib import PurePosixPath, Path
-from tdom_path import make_path_nodes, render_path_nodes
-from tdom_path.tree import RelativePathStrategy
-
-def collect_component_assets(app, exception):
-    """Sphinx build-finished event handler."""
-    if exception:
-        return
-
-    strategy = RelativePathStrategy()
-
-    # Render components for documentation
-    # (implementation depends on your docs structure)
-
-    # Copy collected assets to build output
-    build_dir = Path(app.outdir)
-    for asset_ref in strategy.collected_assets:
-        dest_path = build_dir / asset_ref.module_path
-        dest_path.parent.mkdir(parents=True, exist_ok=True)
-        dest_path.write_bytes(asset_ref.source.read_bytes())
-
-def setup(app):
-    app.connect("build-finished", collect_component_assets)
-```
-
 ### Benefits
 
 - **Automatic Asset Discovery** - No manual asset lists needed
 - **Deduplication** - AssetReference uses frozen dataclass for set-based dedup
 - **Build-Time Copying** - Copy assets only after all pages rendered
 - **Complete Asset Manifest** - collected_assets contains all referenced assets
-
-## Migrating from Framework-Specific Helpers
-
-### From Django staticfiles
-
-**Before (Django staticfiles):**
-```python
-# myapp/templates/base.html
-{% load static %}
-<link rel="stylesheet" href="{% static 'myapp/css/style.css' %}">
-<script src="{% static 'myapp/js/app.js' %}"></script>
-```
-
-**After (tdom-path):**
-```python
-# myapp/components/base.py
-from tdom import Element
-from tdom_path import path_nodes
-
-class Base:
-    @path_nodes
-    def __html__(self) -> Element:
-        return Element("head", children=[
-            Element("link", {
-                "rel": "stylesheet",
-                "href": "static/css/style.css"
-            }),
-            Element("script", {"src": "static/js/app.js"}),
-        ])
-```
-
-**Benefits:**
-- No template language required
-- Type-safe component code
-- Works outside Django
-- Asset validation at build time
-
-### From Flask url_for
-
-**Before (Flask url_for):**
-```python
-from flask import Flask, render_template
-
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-# templates/index.html
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-```
-
-**After (tdom-path):**
-```python
-from flask import Flask
-from tdom import Element
-from tdom_path import path_nodes, render_path_nodes
-from pathlib import PurePosixPath
-
-class Page:
-    @path_nodes
-    def __html__(self) -> Element:
-        return Element("head", children=[
-            Element("link", {
-                "rel": "stylesheet",
-                "href": "static/style.css"
-            }),
-        ])
-
-@app.route("/")
-def index():
-    page = Page()
-    tree = page.__html__()
-    target = PurePosixPath("templates/index.html")
-    rendered = render_path_nodes(tree, target)
-    return str(rendered)
-```
-
-**Benefits:**
-- No Jinja2 template required
-- Components work in other frameworks
-- Type safety with Python code
-- Asset paths validated
-
-### From FastAPI Static Files
-
-**Before (FastAPI static files):**
-```python
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
-
-app = FastAPI()
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-@app.get("/")
-async def index():
-    return HTMLResponse('''
-        <link rel="stylesheet" href="/static/style.css">
-    ''')
-```
-
-**After (tdom-path):**
-```python
-from fastapi import FastAPI
-from tdom import Element
-from tdom_path import path_nodes, render_path_nodes
-from pathlib import PurePosixPath
-
-class Page:
-    @path_nodes
-    def __html__(self) -> Element:
-        return Element("head", children=[
-            Element("link", {
-                "rel": "stylesheet",
-                "href": "static/style.css"
-            }),
-        ])
-
-@app.get("/")
-async def index():
-    page = Page()
-    tree = page.__html__()
-    target = PurePosixPath("templates/index.html")
-    rendered = render_path_nodes(tree, target)
-    return str(rendered)
-```
-
-**Benefits:**
-- Type-safe components
-- Asset validation
-- Framework-independent components
-- Works with async routes
 
 ## Advanced Patterns
 
@@ -509,5 +325,4 @@ rendered = render_path_nodes(path_tree, target, strategy=absolute_strategy)
 ## Next Steps
 
 - Review [API Reference](../reference/api-reference.md) for detailed function signatures
-- Explore [Framework Integration](framework-integration.md) for specific framework examples
 - See [Core Concepts](core-concepts.md) for deeper understanding of the lifecycle
