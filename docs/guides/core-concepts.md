@@ -7,34 +7,34 @@ This guide explains the fundamental concepts of tdom-path and how the three core
 tdom-path provides a three-phase pipeline for resolving component assets:
 
 1. **Path Resolution** - Convert asset references to Traversable instances
-2. **Tree Transformation** - Automatically rewrite VDOM trees to use Traversable
+2. **Tree Transformation** - Automatically rewrite Node trees to use Traversable
 3. **Path Rendering** - Convert Traversable to relative path strings for HTML output
 
 ## The Three Core Functions
 
-### make_path() - Path Resolution
+### make_traversable() - Path Resolution
 
-`make_path()` creates Traversable instances from asset path strings. It supports two path formats:
+`make_traversable()` creates Traversable instances from asset path strings. It supports two path formats:
 
 **Package Paths** (format: `package:resource/path`):
 ```python
->>> from tdom_path import make_path
+>>> from tdom_path import make_traversable
 >>> # Reference asset from installed package
->>> css_path = make_path(None, "bootstrap:dist/css/bootstrap.css")  # doctest: +SKIP
+>>> css_path = make_traversable(None, "bootstrap:dist/css/bootstrap.css")  # doctest: +SKIP
 ```
 
 **Relative Paths** (format: `resource/path`, `./resource/path`, or `../resource/path`):
 ```python
 >>> from mysite.components.heading import Heading
 >>> # Reference asset relative to component's module
->>> css_path = make_path(Heading, "static/styles.css")
+>>> css_path = make_traversable(Heading, "static/styles.css")
 ```
 
 Path type detection is automatic based on the presence of a colon (`:`) character.
 
 ### make_path_nodes() - Tree Transformation
 
-`make_path_nodes()` walks a VDOM tree and automatically transforms `<link href="...">` and `<script src="...">` elements to use Traversable instances:
+`make_path_nodes()` walks a Node tree and automatically transforms `<link href="...">` and `<script src="...">` elements to use Traversable instances:
 
 ```python
 >>> from tdom import Element
@@ -105,8 +105,8 @@ flowchart LR
 
     subgraph Phase2[Phase 2: Tree Transformation]
         MPN[make_path_nodes]
-        TREE1[VDOM Tree<br/>with String Paths] --> MPN
-        MPN --> TREE2[VDOM Tree<br/>with Traversable]
+        TREE1[Node Tree<br/>with String Paths] --> MPN
+        MPN --> TREE2[Node Tree<br/>with Traversable]
         TRAV -.used by.-> MPN
     end
 
@@ -114,7 +114,7 @@ flowchart LR
         RPN[render_path_nodes]
         TREE2 --> RPN
         TARGET[Target Path<br/>pages/about.html] --> RPN
-        RPN --> TREE3[VDOM Tree<br/>with Relative Paths]
+        RPN --> TREE3[Node Tree<br/>with Relative Paths]
     end
 
     subgraph Output
@@ -228,6 +228,7 @@ For convenience, use the `@path_nodes` decorator to automatically apply `make_pa
 4. **External URL Detection** - External URLs and special schemes left unchanged
 5. **Cross-Platform Consistency** - PurePosixPath ensures consistent web paths on all platforms
 6. **Extensibility** - RenderStrategy Protocol allows custom rendering strategies
+7. **Package-First** - References as package specs are just as supported as local files
 
 ## Asset Validation
 

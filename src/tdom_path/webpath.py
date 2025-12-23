@@ -11,15 +11,15 @@ Design:
 - Supports package asset paths using package:path syntax
 
 Integration:
-    from tdom_path import make_path
+    from tdom_path import make_traversable
     from mysite.components.heading import Heading
 
     # Get module-relative path to component's static asset
-    styles_path = make_path(Heading, "static/styles.css")
+    styles_path = make_traversable(Heading, "static/styles.css")
     # Returns: Traversable instance for mysite/components/heading/static/styles.css
 
     # Use package path syntax for package resources
-    pkg_path = make_path(Heading, "mysite:static/app.js")
+    pkg_path = make_traversable(Heading, "mysite:static/app.js")
     # Returns: Traversable instance for mysite's static/app.js resource
 """
 
@@ -170,7 +170,7 @@ def _resolve_package_path(package_name: str, resource_path: str) -> Traversable:
     return result
 
 
-def make_path(component: Any, asset: str) -> Traversable:
+def make_traversable(component: Any, asset: str) -> Traversable:
     """Create path to component asset as a Traversable instance.
 
     Supports two path formats:
@@ -192,11 +192,11 @@ def make_path(component: Any, asset: str) -> Traversable:
     Examples:
         >>> from mysite.components.heading import Heading
         >>> # Get path to component's CSS file (relative path)
-        >>> css_path = make_path(Heading, "static/styles.css")
+        >>> css_path = make_traversable(Heading, "static/styles.css")
         >>> css_path.is_file()
         True
         >>> # Get path from a package (package path)
-        >>> pkg_path = make_path(Heading, "mysite:static/app.js")
+        >>> pkg_path = make_traversable(Heading, "mysite:static/app.js")
         >>> pkg_path.is_file()
         True
 

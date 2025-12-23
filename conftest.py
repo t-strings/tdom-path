@@ -24,7 +24,7 @@ from pathlib import PurePosixPath
 from typing import Protocol
 from importlib.resources.abc import Traversable
 from tdom import Element, html
-from tdom_path import make_path, make_path_nodes, path_nodes, render_path_nodes
+from tdom_path import make_traversable, make_path_nodes, path_nodes, render_path_nodes
 from tdom_path.tree import RelativePathStrategy
 
 
@@ -51,7 +51,7 @@ _sybil_readme = Sybil(
             "Heading": Heading,
             "Element": Element,
             "html": html,
-            "make_path": make_path,
+            "make_traversable": make_traversable,
             "make_path_nodes": make_path_nodes,
             "render_path_nodes": render_path_nodes,
             "path_nodes": path_nodes,

@@ -28,7 +28,7 @@ from tdom_path.tree import (
     _validate_asset_exists,
     _TraversableWithPath,
 )
-from tdom_path.webpath import make_path
+from tdom_path.webpath import make_traversable
 
 
 # Helper to check if value is traversable or wrapped traversable
@@ -160,7 +160,7 @@ def test_transform_asset_element_preserves_children():
 def test_render_transform_node_with_path_element():
     """Test _render_transform_node transforms TraversableElement to Element."""
 
-    css_path = make_path(Heading, "static/styles.css")
+    css_path = make_traversable(Heading, "static/styles.css")
     strategy = RelativePathStrategy()
     target = PurePosixPath("mysite/components/heading/index.html")
 
@@ -216,8 +216,8 @@ def test_render_transform_node_with_path_element_no_paths():
 def test_render_transform_node_multiple_path_attrs():
     """Test _render_transform_node transforms multiple Traversable attributes."""
 
-    path1 = make_path(Heading, "static/file1.css")
-    path2 = make_path(Heading, "static/file2.js")
+    path1 = make_traversable(Heading, "static/file1.css")
+    path2 = make_traversable(Heading, "static/file2.js")
     strategy = RelativePathStrategy()
     target = PurePosixPath("mysite/pages/index.html")
 
@@ -243,7 +243,7 @@ def test_render_transform_node_multiple_path_attrs():
 def test_render_transform_node_with_custom_strategy():
     """Test _render_transform_node uses provided strategy."""
 
-    css_path = make_path(Heading, "static/styles.css")
+    css_path = make_traversable(Heading, "static/styles.css")
     strategy = RelativePathStrategy(site_prefix=PurePosixPath("mysite/static"))
     target = PurePosixPath("index.html")
 
@@ -335,7 +335,7 @@ def test_path_element_behavior():
     """Test TraversableElement attributes, inheritance, and rendering."""
     import pytest
 
-    css_path = make_path(Heading, "static/styles.css")
+    css_path = make_traversable(Heading, "static/styles.css")
 
     # Test mixed attr types (str, Traversable, None)
     elem = TraversableElement(
@@ -383,32 +383,32 @@ def test_relative_path_strategy_calculations():
     strategy = RelativePathStrategy()
 
     # Same directory: mysite/components/heading/index.html -> mysite/components/heading/static/styles.css
-    source = make_path(Heading, "static/styles.css")
+    source = make_traversable(Heading, "static/styles.css")
     target = PurePosixPath("mysite/components/heading/index.html")
     result = strategy.calculate_path(source, target)
     assert result == "static/styles.css"
 
     # Parent directory navigation: mysite/pages/about.html -> mysite/components/heading/static/styles.css
-    source = make_path(Heading, "static/styles.css")
+    source = make_traversable(Heading, "static/styles.css")
     target = PurePosixPath("mysite/pages/about.html")
     result = strategy.calculate_path(source, target)
     assert ".." in result  # Should use ../
     assert "components/heading/static/styles.css" in result
 
     # Nested paths: mysite/index.html -> mysite/components/heading/static/css/main.css
-    source = make_path(Heading, "static/css/main.css")
+    source = make_traversable(Heading, "static/css/main.css")
     target = PurePosixPath("mysite/index.html")
     result = strategy.calculate_path(source, target)
     assert "components/heading/static/css/main.css" in result
 
     # Same component directory: mysite/components/heading/index.html -> mysite/components/heading/styles.css
-    source = make_path(Heading, "styles.css")
+    source = make_traversable(Heading, "styles.css")
     target = PurePosixPath("mysite/components/heading/index.html")
     result = strategy.calculate_path(source, target)
     assert result == "styles.css"
 
     # Cross directory: mysite/pages/docs/guide.html -> mysite/components/heading/assets/js/app.js
-    source = make_path(Heading, "assets/js/app.js")
+    source = make_traversable(Heading, "assets/js/app.js")
     target = PurePosixPath("mysite/pages/docs/guide.html")
     result = strategy.calculate_path(source, target)
     assert ".." in result
@@ -421,7 +421,7 @@ def test_relative_path_strategy_with_site_prefix():
 
     strategy = RelativePathStrategy(site_prefix=PurePosixPath("mysite/static"))
 
-    source_path = make_path(Heading, "static/styles.css")
+    source_path = make_traversable(Heading, "static/styles.css")
     target = PurePosixPath("index.html")
 
     result = strategy.calculate_path(source_path, target)
@@ -438,8 +438,8 @@ def test_relative_path_strategy_with_site_prefix():
 def test_render_path_nodes_detection_and_transformation():
     """Test render_path_nodes() detects TraversableElement and transforms to Element."""
     # Create tree with TraversableElement containing Traversable
-    css_path = make_path(Heading, "static/styles.css")
-    js_path = make_path(Heading, "static/app.js")
+    css_path = make_traversable(Heading, "static/styles.css")
+    js_path = make_traversable(Heading, "static/app.js")
 
     tree = Element(
         tag="html",
@@ -489,7 +489,7 @@ def test_render_path_nodes_detection_and_transformation():
 
 def test_render_path_nodes_with_default_strategy():
     """Test render_path_nodes() uses default RelativePathStrategy."""
-    css_path = make_path(Heading, "static/styles.css")
+    css_path = make_traversable(Heading, "static/styles.css")
 
     tree = TraversableElement(
         tag="link", attrs={"rel": "stylesheet", "href": css_path}, children=[]
@@ -506,7 +506,7 @@ def test_render_path_nodes_with_default_strategy():
 
 def test_render_path_nodes_with_custom_strategy():
     """Test render_path_nodes() accepts custom strategy parameter."""
-    css_path = make_path(Heading, "static/styles.css")
+    css_path = make_traversable(Heading, "static/styles.css")
 
     tree = TraversableElement(
         tag="link", attrs={"rel": "stylesheet", "href": css_path}, children=[]
@@ -540,7 +540,7 @@ def test_render_path_nodes_optimization_no_path_elements():
 
 def test_render_path_nodes_mixed_tree():
     """Test render_path_nodes() handles mixed Element and TraversableElement tree."""
-    css_path = make_path(Heading, "static/styles.css")
+    css_path = make_traversable(Heading, "static/styles.css")
 
     tree = Element(
         tag="html",
@@ -592,8 +592,8 @@ def test_render_path_nodes_mixed_tree():
 def test_render_path_nodes_multiple_path_attributes():
     """Test render_path_nodes() processes ANY Traversable attribute, not just href/src."""
     # Create TraversableElement with multiple Traversable attributes
-    path1 = make_path(Heading, "static/file1.css")
-    path2 = make_path(Heading, "static/file2.js")
+    path1 = make_traversable(Heading, "static/file1.css")
+    path2 = make_traversable(Heading, "static/file2.js")
 
     tree = TraversableElement(
         tag="custom",
@@ -1213,7 +1213,7 @@ def test_validate_asset_exists_with_existing_asset():
     """Test _validate_asset_exists passes for existing assets."""
 
     # Test with existing asset from fake_package
-    asset_path = make_path(None, "tests.fixtures.fake_package:static/styles.css")
+    asset_path = make_traversable(None, "tests.fixtures.fake_package:static/styles.css")
     component = Heading
     attr_name = "href"
 
@@ -1226,7 +1226,7 @@ def test_validate_asset_exists_with_missing_asset():
     import pytest
 
     # Test with non-existent asset from fake_package
-    asset_path = make_path(None, "tests.fixtures.fake_package:static/nonexistent.css")
+    asset_path = make_traversable(None, "tests.fixtures.fake_package:static/nonexistent.css")
     component = Heading
     attr_name = "href"
 
@@ -1245,7 +1245,7 @@ def test_validate_asset_exists_error_message_includes_component():
     import pytest
 
     # Test with missing asset
-    asset_path = make_path(None, "tests.fixtures.fake_package:static/missing.js")
+    asset_path = make_traversable(None, "tests.fixtures.fake_package:static/missing.js")
     component = Heading
     attr_name = "src"
 
@@ -1324,7 +1324,7 @@ def test_validate_asset_exists_with_package_paths():
     """Test validation works correctly with package paths."""
 
     # Test with valid package path
-    asset_path = make_path(None, "tests.fixtures.fake_package:images/logo.png")
+    asset_path = make_traversable(None, "tests.fixtures.fake_package:images/logo.png")
 
     # Should not raise any exception
     _validate_asset_exists(asset_path, Heading, "src")
@@ -1335,7 +1335,7 @@ def test_validate_asset_exists_error_includes_path_string():
     import pytest
 
     # Test with missing asset
-    asset_path = make_path(None, "tests.fixtures.fake_package:static/notfound.css")
+    asset_path = make_traversable(None, "tests.fixtures.fake_package:static/notfound.css")
 
     # Should include path information in error
     with pytest.raises(FileNotFoundError) as exc_info:
@@ -1355,7 +1355,7 @@ def test_traversable_element_accepts_traversable_attributes():
     """Test TraversableElement accepts Traversable attribute values (not just PurePosixPath)."""
 
     # Get a Traversable instance from make_path
-    traversable = make_path(Heading, "static/styles.css")
+    traversable = make_traversable(Heading, "static/styles.css")
 
     # Verify it's a Traversable (not just PurePosixPath)
     assert _is_traversable_or_wrapped(traversable)
@@ -1389,7 +1389,7 @@ def test_transform_asset_element_returns_traversable_attributes():
 def test_render_transform_node_handles_traversable_values():
     """Test _render_transform_node converts Traversable attributes to strings."""
 
-    traversable = make_path(Heading, "static/styles.css")
+    traversable = make_traversable(Heading, "static/styles.css")
     assert _is_traversable_or_wrapped(traversable)
 
     strategy = RelativePathStrategy()
@@ -1412,8 +1412,8 @@ def test_render_path_nodes_with_traversable_attributes():
     """Test render_path_nodes() handles Traversable attributes throughout the tree."""
 
     # Create tree with Traversable attributes
-    css_path = make_path(Heading, "static/styles.css")
-    js_path = make_path(Heading, "static/app.js")
+    css_path = make_traversable(Heading, "static/styles.css")
+    js_path = make_traversable(Heading, "static/app.js")
 
     assert _is_traversable_or_wrapped(css_path)
     assert _is_traversable_or_wrapped(js_path)
@@ -1459,7 +1459,7 @@ def test_relative_path_strategy_accepts_traversable_source():
     strategy = RelativePathStrategy()
 
     # Get Traversable instance
-    source = make_path(Heading, "static/styles.css")
+    source = make_traversable(Heading, "static/styles.css")
     assert _is_traversable_or_wrapped(source)
 
     target = PurePosixPath("mysite/components/heading/index.html")
@@ -1475,7 +1475,7 @@ def test_package_path_returns_traversable():
     """Test package paths return Traversable instances (not PurePosixPath)."""
 
     # Package path syntax
-    pkg_path = make_path(None, "tests.fixtures.fake_package:static/styles.css")
+    pkg_path = make_traversable(None, "tests.fixtures.fake_package:static/styles.css")
 
     # Should return Traversable
     assert _is_traversable_or_wrapped(pkg_path)
@@ -1486,7 +1486,7 @@ def test_package_path_returns_traversable():
 def test_mixed_traversable_and_string_attributes():
     """Test TraversableElement can have mixed Traversable and string attributes."""
 
-    traversable = make_path(Heading, "static/styles.css")
+    traversable = make_traversable(Heading, "static/styles.css")
     assert _is_traversable_or_wrapped(traversable)
 
     elem = TraversableElement(

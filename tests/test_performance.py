@@ -12,7 +12,7 @@ import pytest
 from tdom import html
 
 from mysite.components.heading import Heading
-from tdom_path import make_path, make_path_nodes, render_path_nodes
+from tdom_path import make_traversable, make_path_nodes, render_path_nodes
 from tdom_path.tree import _walk_tree
 
 
@@ -50,7 +50,7 @@ def test_performance_metrics(large_tree):
     path_tree = make_path_nodes(large_tree, Heading)
 
     def run_suite():
-        make_path(Heading, "static/styles.css")
+        make_traversable(Heading, "static/styles.css")
         make_path_nodes(large_tree, Heading)
         render_path_nodes(path_tree, target)
         _walk_tree(large_tree, lambda n: n)
@@ -74,5 +74,5 @@ def test_performance_metrics(large_tree):
     print(f"Memory usage delta: {mem / 1024:.2f} KB")
 
     # 3. Sanity check
-    assert isinstance(make_path(Heading, "static/styles.css"), Traversable)
+    assert isinstance(make_traversable(Heading, "static/styles.css"), Traversable)
     assert make_path_nodes(large_tree, Heading) is not None

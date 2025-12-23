@@ -21,7 +21,7 @@ graph TD
 ### Core Components
 
 1. **Path Resolution Module** (`webpath.py`)
-   - `make_path()`: Core path resolution function
+   - `make_traversable()`: Core path resolution function
    - Path type detection (package vs relative)
    - Package path parsing and resolution
    - Module-relative path calculation
@@ -43,7 +43,7 @@ graph TD
 
 | Operation | Target Time | Target Throughput | Memory Budget |
 |-----------|-------------|-------------------|---------------|
-| `make_path()` | < 50 μs | > 20,000 ops/s | < 100 KB |
+| `make_traversable()` | < 50 μs | > 20,000 ops/s | < 100 KB |
 | `make_path_nodes()` | < 5 ms (100 components) | > 200 ops/s | < 10 MB |
 | `render_path_nodes()` | < 2 ms (100 components) | > 500 ops/s | < 5 MB |
 | `_walk_tree()` | < 1 ms (100 components) | > 1,000 ops/s | < 1 MB |
@@ -60,7 +60,7 @@ graph TD
 ### Function Signatures
 
 ```python
-def make_path(component: Any, asset: str) -> Traversable: ...
+def make_traversable(component: Any, asset: str) -> Traversable: ...
 def make_path_nodes(target: Node, component: Any) -> Node: ...
 def render_path_nodes(tree: Node, target: PurePosixPath, strategy: RenderStrategy | None = None) -> Node: ...
 def path_nodes(func_or_method: Callable[P, R]) -> Callable[P, R]: ...

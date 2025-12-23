@@ -49,13 +49,13 @@ For advanced tree transformations, you can create custom tree walking functions:
 
 ```python
 >>> from functools import lru_cache
->>> from tdom_path import make_path
+>>> from tdom_path import make_traversable
 >>> @lru_cache(maxsize=128)
-... def cached_make_path(component, asset_path):
-...     return make_path(component, asset_path)
+... def cached_make_traversable(component, asset_path):
+...     return make_traversable(component, asset_path)
 >>> # Usage
 >>> from mysite.components.heading import Heading
->>> css_path = cached_make_path(Heading, "static/styles.css")
+>>> css_path = cached_make_traversable(Heading, "static/styles.css")
 ```
 
 ### Batch Processing
@@ -65,7 +65,7 @@ For advanced tree transformations, you can create custom tree walking functions:
 ...     """Process multiple components and asset paths efficiently."""
 ...     results = {}
 ...     for component, asset_path in zip(components, asset_paths):
-...         results[(component, asset_path)] = make_path(component, asset_path)
+...         results[(component, asset_path)] = make_traversable(component, asset_path)
 ...     return results
 ```
 
@@ -117,13 +117,13 @@ For advanced tree transformations, you can create custom tree walking functions:
 ### Asset Validation
 
 ```python
->>> from tdom_path import make_path
+>>> from tdom_path import make_traversable
 >>> def validate_all_assets(component, asset_paths):
 ...     """Validate that all assets exist before deployment."""
 ...     missing_assets = []
 ...     for asset_path in asset_paths:
 ...         try:
-...             path = make_path(component, asset_path)
+...             path = make_traversable(component, asset_path)
 ...             if not path.is_file():
 ...                 missing_assets.append(asset_path)
 ...         except Exception as e:

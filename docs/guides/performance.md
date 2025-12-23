@@ -18,8 +18,8 @@ Based on benchmarks simulating typical SSG workflows (120+ component tree, multi
 
 | Operation | Cold Cache | Warm Cache | Speedup |
 |-----------|------------|------------|---------|
-| `make_path()` - module access | 25.8μs | 1.4μs | **17.9x faster** |
-| `make_path()` - package path | ~25μs | 1.3μs | **19x faster** |
+| `make_traversable()` - module access | 25.8μs | 1.4μs | **17.9x faster** |
+| `make_traversable()` - package path | ~25μs | 1.3μs | **19x faster** |
 | `make_path_nodes()` - tree transform | 758μs | 758μs | (no change) |
 | `render_path_nodes()` - per page | 684μs | 684μs | (no change) |
 

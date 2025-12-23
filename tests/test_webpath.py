@@ -12,14 +12,14 @@ These tests focus on make_path functionality:
 from importlib.resources.abc import Traversable
 
 from mysite.components.heading import Heading
-from tdom_path import make_path
+from tdom_path import make_traversable
 from tdom_path.webpath import _detect_path_type, _parse_package_path
 
 
 def test_make_path_basic():
     """Test basic make_path functionality with component and asset."""
     # Create path to static CSS file
-    css_path = make_path(Heading, "static/styles.css")
+    css_path = make_traversable(Heading, "static/styles.css")
 
     # Should return a Traversable (for package resource access)
     assert isinstance(css_path, Traversable)
@@ -35,7 +35,7 @@ def test_make_path_basic():
 def test_make_path_module_structure():
     """Test that make_path returns module-relative paths."""
     # Create path to the CSS file
-    css_path = make_path(Heading, "static/styles.css")
+    css_path = make_traversable(Heading, "static/styles.css")
 
     # Verify the path is module-relative (not filesystem absolute)
     path_str = str(css_path)
@@ -49,7 +49,7 @@ def test_make_path_module_structure():
     heading = Heading("Test Heading")
 
     # make_path should work with instance (extracts __module__ from class)
-    css_path = make_path(heading, "static/styles.css")
+    css_path = make_traversable(heading, "static/styles.css")
 
     assert isinstance(css_path, Traversable)
     assert "styles.css" in str(css_path)
@@ -58,15 +58,15 @@ def test_make_path_module_structure():
 def test_make_path_different_assets():
     """Test make_path with different asset paths."""
     # CSS file
-    css_path = make_path(Heading, "static/styles.css")
+    css_path = make_traversable(Heading, "static/styles.css")
     assert "styles.css" in str(css_path)
 
     # JavaScript file
-    js_path = make_path(Heading, "static/script.js")
+    js_path = make_traversable(Heading, "static/script.js")
     assert "script.js" in str(js_path)
 
     # Image file in subdirectory
-    img_path = make_path(Heading, "static/images/logo.png")
+    img_path = make_traversable(Heading, "static/images/logo.png")
     assert "logo.png" in str(img_path)
 
 
@@ -74,7 +74,7 @@ def test_make_path_no_module_attribute():
     """Test that make_path raises TypeError for objects without __module__."""
     # Plain string has no __module__
     try:
-        make_path("not_a_component", "static/styles.css")
+        make_traversable("not_a_component", "static/styles.css")
         assert False, "Should have raised TypeError"
     except TypeError as e:
         assert "__module__" in str(e)
@@ -159,7 +159,7 @@ def test_resolve_package_path_basic():
     """
     # Resolve a package path to get Traversable
     # Component parameter doesn't matter for package paths - using None
-    result = make_path(None, "tests.fixtures.fake_package:static/styles.css")
+    result = make_traversable(None, "tests.fixtures.fake_package:static/styles.css")
 
     # Should return a Traversable instance
     assert isinstance(result, Traversable)
@@ -177,17 +177,17 @@ def test_resolve_package_path_navigation():
     Note: Component parameter doesn't matter for package paths.
     """
     # Test CSS file - using None since component is ignored for package paths
-    css_result = make_path(None, "tests.fixtures.fake_package:static/styles.css")
+    css_result = make_traversable(None, "tests.fixtures.fake_package:static/styles.css")
     assert isinstance(css_result, Traversable)
     assert css_result.is_file()
 
     # Test JS file
-    js_result = make_path(None, "tests.fixtures.fake_package:static/script.js")
+    js_result = make_traversable(None, "tests.fixtures.fake_package:static/script.js")
     assert isinstance(js_result, Traversable)
     assert js_result.is_file()
 
     # Test image file
-    img_result = make_path(None, "tests.fixtures.fake_package:images/logo.png")
+    img_result = make_traversable(None, "tests.fixtures.fake_package:images/logo.png")
     assert isinstance(img_result, Traversable)
     assert img_result.is_file()
 
@@ -199,7 +199,7 @@ def test_resolve_package_path_missing_package():
     """
     # Try to resolve a path to a non-existent package
     try:
-        make_path(None, "nonexistent_package:static/styles.css")
+        make_traversable(None, "nonexistent_package:static/styles.css")
         assert False, "Should have raised ModuleNotFoundError or ImportError"
     except (ModuleNotFoundError, ImportError) as e:
         # Should get an error about the missing package
@@ -209,7 +209,7 @@ def test_resolve_package_path_missing_package():
 def test_resolve_relative_path_to_traversable():
     """Test that relative paths also resolve to Traversable instances."""
     # Create a relative path
-    result = make_path(Heading, "static/styles.css")
+    result = make_traversable(Heading, "static/styles.css")
 
     # Should return a Traversable instance
     assert isinstance(result, Traversable)
@@ -224,7 +224,7 @@ def test_package_path_with_dotted_name():
     Note: Component parameter doesn't matter for package paths.
     """
     # Test with fully qualified package name (dots in package)
-    result = make_path(None, "tests.fixtures.fake_package:static/styles.css")
+    result = make_traversable(None, "tests.fixtures.fake_package:static/styles.css")
 
     assert isinstance(result, Traversable)
     assert result.is_file()
@@ -234,9 +234,9 @@ def test_package_path_with_dotted_name():
 def test_relative_path_with_prefix():
     """Test relative paths with ./ and ../ prefixes resolve to Traversable."""
     # Test with ./ prefix
-    result = make_path(Heading, "./static/styles.css")
+    result = make_traversable(Heading, "./static/styles.css")
     assert isinstance(result, Traversable)
 
     # Test with plain relative path
-    result2 = make_path(Heading, "static/styles.css")
+    result2 = make_traversable(Heading, "static/styles.css")
     assert isinstance(result2, Traversable)

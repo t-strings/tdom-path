@@ -4,13 +4,13 @@ This section provides detailed API documentation for tdom-path.
 
 ## Core Functions
 
-### make_path
+### make_traversable
 
 ```python
 from typing import Any
 from importlib.resources.abc import Traversable
 
-def make_path(component: Any, asset: str) -> Traversable: ...
+def make_traversable(component: Any, asset: str) -> Traversable: ...
 ```
 
 Create path to asset resource as a Traversable instance.
@@ -46,16 +46,16 @@ Path type detection is automatic based on presence of colon (`:`) character.
 
 **Examples:**
 ```python
->>> from tdom_path import make_path
+>>> from tdom_path import make_traversable
 >>> # Package path - access asset from installed package
->>> pkg_path = make_path(None, "mypackage:static/styles.css")  # doctest: +SKIP
+>>> pkg_path = make_traversable(None, "mypackage:static/styles.css")  # doctest: +SKIP
 >>> # Relative path - access local component asset
 >>> from mysite.components.heading import Heading
->>> css_path = make_path(Heading, "static/styles.css")
+>>> css_path = make_traversable(Heading, "static/styles.css")
 >>> # With ./ prefix
->>> css_path = make_path(Heading, "./static/styles.css")
+>>> css_path = make_traversable(Heading, "./static/styles.css")
 >>> # Parent directory
->>> shared_path = make_path(Heading, "../shared/common.css")  # doctest: +SKIP
+>>> shared_path = make_traversable(Heading, "../shared/common.css")  # doctest: +SKIP
 ```
 
 ### make_path_nodes
@@ -70,13 +70,13 @@ def make_path_nodes(target: Node, component: Any) -> Node: ...
 
 Rewrite asset-bearing attributes in a tdom tree to use make_path.
 
-Walks the Node tree and detects elements with static asset references (`<link>` and `<script>` tags), converting their `href`/`src` string attributes to Traversable using `make_path(component, attr_value)`.
+Walks the Node tree and detects elements with static asset references (`<link>` and `<script>` tags), converting their `href`/`src` string attributes to Traversable using `make_traversable(component, attr_value)`.
 
 Automatically validates that all assets exist, raising FileNotFoundError immediately if any asset is not found.
 
 **Parameters:**
 - `target`: Root node of the tree to process
-- `component`: Component instance/class for make_path() resolution (used for relative paths only)
+- `component`: Component instance/class for make_traversable() resolution (used for relative paths only)
 
 **Returns:**
 - New Node tree with asset attributes converted to Traversable (immutable transformation)
@@ -202,11 +202,11 @@ Calculates relative paths from the target output location to the source asset lo
 ```python
 >>> from pathlib import PurePosixPath
 >>> from tdom_path.tree import RelativePathStrategy
->>> from tdom_path.webpath import make_path
+>>> from tdom_path.webpath import make_traversable
 >>> from mysite.components.heading import Heading
 >>> # Basic relative path calculation
 >>> strategy = RelativePathStrategy()
->>> source = make_path(Heading, "static/styles.css")
+>>> source = make_traversable(Heading, "static/styles.css")
 >>> target = PurePosixPath("mysite/pages/about.html")
 >>> path_str = strategy.calculate_path(source, target)  # doctest: +SKIP
 >>> # With site prefix for subdirectory deployment

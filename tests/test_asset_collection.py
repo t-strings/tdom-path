@@ -15,7 +15,7 @@ from tdom_path.tree import (
     make_path_nodes,
     render_path_nodes,
 )
-from tdom_path.webpath import make_path
+from tdom_path.webpath import make_traversable
 
 
 # ============================================================================
@@ -26,8 +26,8 @@ from tdom_path.webpath import make_path
 def test_asset_reference_deduplication():
     """Test AssetReference deduplicates in sets based on module_path."""
     # Same module_path deduplicates
-    source1 = make_path(Heading, "static/styles.css")
-    source2 = make_path(Heading, "static/styles.css")
+    source1 = make_traversable(Heading, "static/styles.css")
+    source2 = make_traversable(Heading, "static/styles.css")
     module_path = PurePosixPath("mysite/components/heading/static/styles.css")
 
     ref1 = AssetReference(source=source1, module_path=module_path)
@@ -37,7 +37,7 @@ def test_asset_reference_deduplication():
     assert len(asset_set) == 1  # Deduplicates
 
     # Different module_paths don't deduplicate
-    source3 = make_path(Heading, "static/app.js")
+    source3 = make_traversable(Heading, "static/app.js")
     module_path2 = PurePosixPath("mysite/components/heading/static/app.js")
     ref3 = AssetReference(source=source3, module_path=module_path2)
 
@@ -51,7 +51,7 @@ def test_strategy_collected_assets():
     assert len(strategy.collected_assets) == 0
 
     # Add assets to collected_assets
-    source = make_path(Heading, "static/styles.css")
+    source = make_traversable(Heading, "static/styles.css")
     module_path = PurePosixPath("mysite/components/heading/static/styles.css")
     ref = AssetReference(source=source, module_path=module_path)
     strategy.collected_assets.add(ref)
