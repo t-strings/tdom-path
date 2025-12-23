@@ -122,7 +122,9 @@ def test_collection_edge_cases():
     result = render_path_nodes(path_tree2, target, strategy2)
     assert len(strategy2.collected_assets) == 1  # Asset still collected
     link = get_by_tag_name(result, "link")
-    assert "mysite/static" in link.attrs["href"]  # site_prefix in rendered path
+    href = link.attrs["href"]
+    assert href is not None  # Ensure href is not None
+    assert "mysite/static" in href  # site_prefix in rendered path
 
 
 # ============================================================================

@@ -57,11 +57,14 @@ def create_test_tree():
     </html>""")
 
 
-def benchmark_operation(name: str, operation, iterations: int = 100):
+def benchmark_operation(
+    name: str, operation, iterations: int = 100, warmup: bool = True
+):
     """Benchmark a single operation."""
-    # Warmup to ensure JIT compilation, etc.
-    for _ in range(10):
-        result = operation()
+    # Warmup to ensure JIT compilation, etc. (but skip for cold cache tests)
+    if warmup:
+        for _ in range(10):
+            result = operation()
 
     start = time.perf_counter()
     for _ in range(iterations):
@@ -73,7 +76,7 @@ def benchmark_operation(name: str, operation, iterations: int = 100):
     total_time = (end - start) * 1_000_000  # Convert to microseconds
     avg_time = total_time / iterations
 
-    print(f"  {name:<35} {avg_time:>10.3f}μs/op  ({iterations} iterations)")
+    print(f"  {name:<45} {avg_time:>10.3f}μs/op  ({iterations} iterations)")
     return avg_time
 
 
@@ -92,33 +95,55 @@ def run_benchmark():
 
     results = {}
 
-    # Path resolution benchmarks
+    # Path resolution benchmarks - COLD CACHE
+    print("\n  [Cold cache tests - measuring first-time module loading...]")
+    from tdom_path.webpath import _get_module_files
+
+    _get_module_files.cache_clear()  # Clear cache for cold test
+
+    results["make_path_cold"] = benchmark_operation(
+        "make_path() - relative (COLD cache)",
+        lambda: make_path(Heading, "static/styles.css"),
+        iterations=100,
+        warmup=False,  # No warmup for cold cache test
+    )
+
+    # Path resolution benchmarks - WARM CACHE (realistic scenario)
+    print("\n  [Warm cache tests - simulating repeated use...]")
     results["make_path"] = benchmark_operation(
-        "make_path() - relative path",
+        "make_path() - relative (WARM cache)",
         lambda: make_path(Heading, "static/styles.css"),
     )
 
     results["make_path_pkg"] = benchmark_operation(
-        "make_path() - package path",
+        "make_path() - package path (WARM)",
         lambda: make_path(None, "tests.fixtures.fake_package:static/styles.css"),
     )
 
-    # Tree transformation benchmarks
+    # SSG Simulation: Transform same tree for multiple pages
+    print("\n  [SSG workflow: transforming component tree...]")
     results["make_path_nodes"] = benchmark_operation(
         "make_path_nodes() - tree transform",
         lambda: make_path_nodes(tree, Heading),
-        iterations=50,  # Slower operation, fewer iterations
+        iterations=50,
     )
 
     # Pre-transform tree for rendering benchmark
-    print("\n  [Preparing transformed tree for render benchmark...]")
+    print("\n  [Preparing transformed tree for multi-page rendering...]")
     path_tree = make_path_nodes(tree, Heading)
-    target = PurePosixPath("mysite/pages/index.html")
 
-    results["render_path_nodes"] = benchmark_operation(
-        "render_path_nodes() - path rendering",
-        lambda: render_path_nodes(path_tree, target),
-        iterations=50,
+    # SSG Simulation: Render for multiple target pages
+    targets = [
+        PurePosixPath("mysite/index.html"),
+        PurePosixPath("mysite/pages/about.html"),
+        PurePosixPath("mysite/pages/docs/guide.html"),
+        PurePosixPath("mysite/blog/post1.html"),
+    ]
+
+    results["render_multi_page"] = benchmark_operation(
+        "render_path_nodes() - 4 pages (SSG scenario)",
+        lambda: [render_path_nodes(path_tree, target) for target in targets],
+        iterations=25,
     )
 
     # Tree traversal benchmark
@@ -138,10 +163,29 @@ def run_benchmark():
     print("\nPerformance Analysis:")
     print("-" * 85)
 
-    # Path resolution (fast operations)
+    # Cache impact analysis
+    cache_speedup = (results["make_path_cold"] / results["make_path"] - 1) * 100
+    print("\n  LRU Cache Impact:")
+    print(
+        f"    Cold cache:  {results['make_path_cold']:.1f}μs/op (first module access)"
+    )
+    print(f"    Warm cache:  {results['make_path']:.1f}μs/op (cached module)")
+    print(
+        f"    Speedup:     {cache_speedup:.0f}% faster with cache ({results['make_path_cold'] / results['make_path']:.1f}x)"
+    )
+    if cache_speedup > 500:
+        print("    ✓ EXCELLENT - Cache providing massive performance boost")
+    elif cache_speedup > 100:
+        print("    ✓ GOOD - Cache significantly improves performance")
+    elif cache_speedup > 20:
+        print("    ✓ FAIR - Cache helping performance")
+    else:
+        print("    ⚠ Cache not providing significant benefit")
+
+    # Path resolution (warm cache - typical usage)
     path_ops = [results["make_path"], results["make_path_pkg"]]
     avg_path = sum(path_ops) / len(path_ops)
-    print(f"\n  Path Resolution: {avg_path:.1f}μs/op")
+    print(f"\n  Path Resolution (warm cache): {avg_path:.1f}μs/op")
     if avg_path < 10:
         print("    ✓ EXCELLENT - Path resolution is very fast")
     elif avg_path < 50:
@@ -149,18 +193,17 @@ def run_benchmark():
     else:
         print("    ⚠ Consider optimization for path resolution")
 
-    # Tree operations (slower operations)
-    tree_ops = [results["make_path_nodes"], results["render_path_nodes"], results["walk_tree"]]
-    avg_tree = sum(tree_ops) / len(tree_ops)
-    print(f"\n  Tree Operations: {avg_tree:.1f}μs/op")
-    if avg_tree < 100:
-        print("    ✓ EXCELLENT - Tree operations are very fast")
-    elif avg_tree < 500:
-        print("    ✓ GOOD - Tree operations are efficient")
-    elif avg_tree < 1000:
-        print("    ⚠ FAIR - Consider optimization for large trees")
+    # SSG rendering (multi-page scenario)
+    avg_per_page = results["render_multi_page"] / 4  # 4 pages per iteration
+    print("\n  SSG Rendering (4 pages per iteration):")
+    print(f"    Total:    {results['render_multi_page']:.1f}μs/op (4 pages)")
+    print(f"    Per page: {avg_per_page:.1f}μs/page")
+    if avg_per_page < 200:
+        print("    ✓ EXCELLENT - Fast multi-page rendering")
+    elif avg_per_page < 500:
+        print("    ✓ GOOD - Efficient multi-page rendering")
     else:
-        print("    ✗ SLOW - Optimization recommended")
+        print("    ⚠ Consider optimization for SSG workflows")
 
     print(f"\n  Overall Average: {sum(results.values()) / len(results):.1f}μs/op")
     print("\n" + "=" * 85)

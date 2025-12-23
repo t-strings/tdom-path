@@ -27,7 +27,7 @@ def profile_function(func: Callable, *args, **kwargs):
     # Print stats
     stream = io.StringIO()
     stats = pstats.Stats(profiler, stream=stream)
-    stats.sort_stats('cumulative')
+    stats.sort_stats("cumulative")
     stats.print_stats(20)  # Top 20 functions
 
     print(stream.getvalue())

@@ -42,28 +42,31 @@ def _is_traversable_or_wrapped(value) -> bool:
 # ============================================================================
 
 
-@pytest.mark.parametrize("href,expected", [
-    # Local paths should be processed
-    ("static/styles.css", True),
-    ("./static/styles.css", True),
-    ("../shared/styles.css", True),
-    ("assets/images/logo.png", True),
-    # External URLs should NOT be processed
-    ("http://example.com/style.css", False),
-    ("https://cdn.example.com/style.css", False),
-    ("//cdn.example.com/style.css", False),
-    ("HTTP://EXAMPLE.COM/STYLE.CSS", False),  # Case insensitive
-    # Special schemes should NOT be processed
-    ("mailto:user@example.com", False),
-    ("tel:+1234567890", False),
-    ("data:image/png;base64,abc123", False),
-    ("javascript:void(0)", False),
-    ("#section", False),
-    ("MAILTO:USER@EXAMPLE.COM", False),  # Case insensitive
-    # Empty/None values should NOT be processed
-    (None, False),
-    ("", False),
-])
+@pytest.mark.parametrize(
+    "href,expected",
+    [
+        # Local paths should be processed
+        ("static/styles.css", True),
+        ("./static/styles.css", True),
+        ("../shared/styles.css", True),
+        ("assets/images/logo.png", True),
+        # External URLs should NOT be processed
+        ("http://example.com/style.css", False),
+        ("https://cdn.example.com/style.css", False),
+        ("//cdn.example.com/style.css", False),
+        ("HTTP://EXAMPLE.COM/STYLE.CSS", False),  # Case insensitive
+        # Special schemes should NOT be processed
+        ("mailto:user@example.com", False),
+        ("tel:+1234567890", False),
+        ("data:image/png;base64,abc123", False),
+        ("javascript:void(0)", False),
+        ("#section", False),
+        ("MAILTO:USER@EXAMPLE.COM", False),  # Case insensitive
+        # Empty/None values should NOT be processed
+        (None, False),
+        ("", False),
+    ],
+)
 def test_should_process_href(href, expected):
     """Test _should_process_href with various input types."""
     assert _should_process_href(href) is expected

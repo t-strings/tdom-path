@@ -23,6 +23,7 @@ Integration:
     # Returns: Traversable instance for mypackage's static/styles.css resource
 """
 
+from functools import lru_cache
 from importlib.resources import files
 from importlib.resources.abc import Traversable
 from typing import Any, Literal
@@ -111,6 +112,30 @@ def _parse_package_path(asset: str) -> tuple[str, str]:
     return asset, ""
 
 
+@lru_cache(maxsize=128)
+def _get_module_files(module_name: str) -> Traversable:
+    """Get cached Traversable root for a module.
+
+    Caches the result of importlib.resources.files() to avoid repeated
+    module loading overhead. This provides significant performance improvement
+    when the same module is referenced multiple times.
+
+    Args:
+        module_name: Fully qualified module name (e.g., "mysite.components.heading")
+
+    Returns:
+        Traversable instance representing the module's resource root
+
+    Examples:
+        >>> root = _get_module_files("mysite.components.heading")
+        >>> # Subsequent calls return cached result
+        >>> root2 = _get_module_files("mysite.components.heading")
+        >>> root is root2
+        True
+    """
+    return files(module_name)
+
+
 def _resolve_package_path(package_name: str, resource_path: str) -> Traversable:
     """Resolve a package path to a Traversable instance.
 
@@ -133,8 +158,8 @@ def _resolve_package_path(package_name: str, resource_path: str) -> Traversable:
         >>> traversable.is_file()
         True
     """
-    # Get the package's Traversable root
-    package_root = files(package_name)
+    # Get the package's Traversable root (cached)
+    package_root = _get_module_files(package_name)
 
     # Navigate to the resource by splitting the path and using / operator
     # This handles paths like "static/styles.css" -> static / styles.css
@@ -206,8 +231,8 @@ def make_path(component: Any, asset: str) -> Traversable:
         # Resolve relative path using component's module
         module_name = _normalize_module_name(component.__module__)
 
-        # Get the component module's Traversable root
-        module_root = files(module_name)
+        # Get the component module's Traversable root (cached)
+        module_root = _get_module_files(module_name)
 
         # Navigate to the asset using / operator
         # Handle paths with ./ prefix by stripping it

@@ -60,6 +60,7 @@ class _TraversableWithPath:
         traversable: The Traversable instance for file access
         module_path: Module-relative path (e.g., "mysite/components/heading/static/styles.css")
     """
+
     traversable: Traversable
     module_path: PurePosixPath
 
@@ -301,7 +302,9 @@ def _transform_asset_element(
     attrs[attr_name] = wrapped_path
 
     # Check if any attr value is Traversable or _TraversableWithPath - if so, use TraversableElement
-    has_path = any(isinstance(v, (Traversable, _TraversableWithPath)) for v in attrs.values())
+    has_path = any(
+        isinstance(v, (Traversable, _TraversableWithPath)) for v in attrs.values()
+    )
 
     if has_path:
         return TraversableElement(
@@ -555,7 +558,10 @@ def _render_transform_node(
         return node
 
     # Check if any attribute contains a Traversable or _TraversableWithPath
-    has_path_attr = any(isinstance(value, (Traversable, _TraversableWithPath)) for value in node.attrs.values())
+    has_path_attr = any(
+        isinstance(value, (Traversable, _TraversableWithPath))
+        for value in node.attrs.values()
+    )
 
     # If no Traversable attributes, return unchanged
     if not has_path_attr:
@@ -577,8 +583,8 @@ def _render_transform_node(
             if hasattr(strategy, "collected_assets"):
                 strategy.collected_assets.add(asset_ref)  # type: ignore[attr-defined]
 
-            # Calculate string path using strategy
-            new_attrs[attr_name] = strategy.calculate_path(attr_value, target)
+            # Calculate string path using strategy (pass the unwrapped Traversable)
+            new_attrs[attr_name] = strategy.calculate_path(source, target)
         elif isinstance(attr_value, Traversable):
             # Bare Traversable (shouldn't happen in normal use, but handle it)
             new_attrs[attr_name] = strategy.calculate_path(attr_value, target)
