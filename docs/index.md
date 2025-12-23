@@ -2,6 +2,7 @@
 
 Easily rewrite the static asset paths in your tdom-based markup. Works great for static-site generators.
 
+
 ```{include} ../README.md
 :start-after: "## Installation"
 :end-before: "## <!-- README-only --> Path Syntax Reference"

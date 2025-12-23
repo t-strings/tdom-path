@@ -40,6 +40,9 @@ myst_enable_extensions = [
     "tasklist",
 ]
 
+pygments_style = 'sphinx'  # or 'default', 'monokai', etc.
+pygments_dark_style = 'monokai'  # for dark mode (Sphinx 5.0+)
+
 # Disable Pygments highlighting for mermaid code blocks
 myst_fence_as_directive = ["mermaid"]
 

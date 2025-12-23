@@ -34,46 +34,84 @@ returning `Traversable` objects that represent resource locations suitable for w
 ## Installation
 
 ```bash
-uv add tdom-path
+$ uv add tdom-path
 ```
 
 Or using pip:
 
 ```bash
-pip install tdom-path
+$ pip install tdom-path
 ```
 
-**Requirements:**
+## Requirements
 - Python 3.14+
 - tdom >= 0.1.13
 
 ## Quick Start
 
-### Package Asset Support
-
-Reference assets from installed Python packages using the `package:path` syntax:
+Functional component with decorator and relative path:
 
 ```python
-from tdom_path import make_path
+from tdom import html, Node
+from tdom_path import path_nodes
 
-# Reference asset from an installed package
-# Format: "package_name:resource/path"
-css_path = make_path(None, "mypackage:static/styles.css")
-
-# Returns Traversable pointing to the package resource
-print(css_path)  # Traversable instance
-print(css_path.is_file())  # True if the file exists
-
-# Use in HTML templates with package paths
-from tdom import html
-
-tree = html(t'''
-    <head>
-        <link rel="stylesheet" href="mypackage:static/styles.css">
-        <script src="mypackage:static/app.js"></script>
-    </head>
-''')
+@path_nodes
+def Head():
+    return html(t"""
+<head>
+    <link rel="stylesheet" href="static/styles.css">
+</head>
+    """)
 ```
+
+Functional component that manually applies (not decorator):
+
+```python
+from tdom import html, Node
+from tdom_path import make_path_nodes
+
+def Head():
+    return make_path_nodes(html(t"""
+<head>
+    <link rel="stylesheet" href="static/styles.css">
+</head>
+    """), Head)
+```
+
+Functional component with decorator and package asset path:
+
+```python
+from tdom import html, Node
+from tdom_path import path_nodes
+
+@path_nodes
+def Head():
+    return html(t"""
+<head>
+    <link rel="stylesheet" href="mypackage:static/styles.css">
+</head>
+    """)
+```
+
+Class-based component:
+
+```python
+from dataclasses import dataclass
+from tdom import html, Node
+from tdom_path import path_nodes
+
+@dataclass
+class Head:
+    
+    @path_nodes
+    def __call__(self):
+        return html(t"""
+    <head>
+        <link rel="stylesheet" href="static/styles.css">
+    </head>
+        """)
+```
+
 
 **How Path Type Detection Works:**
 
@@ -81,26 +119,6 @@ tree = html(t'''
 - Otherwise, it's treated as a relative path (relative to the component's module)
 - No need to specify the type explicitly - detection is automatic
 
-### Relative Path Support
-
-Reference assets relative to your component's location:
-
-```python
-from tdom_path import make_path
-from mysite.components.heading import Heading
-
-# Relative path (plain format)
-css_path = make_path(Heading, "static/styles.css")
-
-# Relative path with ./ prefix (explicit current directory)
-css_path = make_path(Heading, "./static/styles.css")
-
-# Relative path with ../ prefix (parent directory)
-shared_path = make_path(Heading, "../shared/common.css")
-
-# Returns Traversable pointing to the component's module resource
-print(css_path)  # Traversable instance
-```
 
 **Supported Relative Path Formats:**
 
@@ -108,34 +126,6 @@ print(css_path)  # Traversable instance
 - `./static/styles.css` - Explicit current directory
 - `../shared/utils.css` - Parent directory navigation
 
-### Tree Rewriting with Decorator
-
-```python
-from tdom import Element
-from tdom_path import path_nodes
-
-class Heading:
-    @path_nodes
-    def __html__(self):
-        # Mix package paths and relative paths
-        return Element("html", children=[
-            Element("head", children=[
-                # Package asset
-                Element("link", {"rel": "stylesheet", "href": "bootstrap:dist/css/bootstrap.css"}),
-                # Local component asset
-                Element("link", {"rel": "stylesheet", "href": "static/styles.css"}),
-                Element("script", {"src": "static/script.js"}),
-            ]),
-            Element("body", children=[
-                Element("h1", children=["Hello World"]),
-            ]),
-        ])
-
-# When __html__() is called, link href and script src are automatically
-# transformed to Traversable objects using make_path()
-heading = Heading()
-html_tree = heading.__html__()
-```
 
 ### Complete Pipeline
 
@@ -146,7 +136,6 @@ from pathlib import PurePosixPath
 from tdom import html
 from tdom_path import make_path_nodes, render_path_nodes
 from tdom_path.tree import RelativePathStrategy
-from mysite.components.heading import Heading
 
 # 1. Define your component with mixed package and relative paths
 class Heading:
@@ -177,7 +166,7 @@ rendered_tree = render_path_nodes(path_tree, target)
 html_output = str(rendered_tree)
 ```
 
-## <!-- README-only --> Path Syntax Reference
+## Path Syntax Reference
 
 ### Package Paths
 
