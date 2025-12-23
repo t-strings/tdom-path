@@ -29,6 +29,7 @@ returning `Traversable` objects that represent resource locations suitable for w
 - **Flexible Path Formats:** Supports package paths, relative paths with `./` or `../`, and plain paths
 - **Cross-Platform:** Traversable ensures consistent resource access across platforms
 - **Type Safety:** Comprehensive type hints with IDE autocomplete and type checking support
+- **Free Threaded:** Written and tested to be free-threading friendly
 - **Asset Validation:** Automatic validation that referenced assets exist (fail-fast with clear errors)
 - **Simple API:** Clean functions for both manual and automatic use cases
 - **Framework Independence:** Same components work in Flask, Django, FastAPI, Sphinx

@@ -27,8 +27,8 @@ test-parallel *ARGS:
     uv run pytest -n auto {{ ARGS }}
 
 # Run tests with free-threading safety checks (parallel threads + iterations)
-test-freethreaded *ARGS:
-    uv run pytest --threads=8 --iterations=10 --require-gil-disabled {{ ARGS }}
+test-freethreaded:
+    uv run pytest -p freethreaded -p no:doctest --threads=8 --iterations=10 --require-gil-disabled tests
 
 # Lint code (check for issues)
 lint *ARGS:
