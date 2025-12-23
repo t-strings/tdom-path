@@ -49,6 +49,10 @@ For sites with 1000+ pages, the savings are even more dramatic.
 The library uses `@lru_cache(maxsize=128)` for module loading via `importlib.resources.files()`:
 
 ```python
+from functools import lru_cache
+from importlib.resources import files
+from tdom_path.webpath import Traversable
+
 @lru_cache(maxsize=128)
 def _get_module_files(module_name: str) -> Traversable:
     """Cache Traversable roots to avoid repeated module loading."""

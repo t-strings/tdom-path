@@ -60,10 +60,10 @@ graph TD
 ### Function Signatures
 
 ```python
-def make_path(component: Any, asset: str) -> Traversable
-def make_path_nodes(target: Node, component: Any) -> Node
-def render_path_nodes(tree: Node, target: PurePosixPath, strategy: RenderStrategy | None = None) -> Node
-def path_nodes(func_or_method: Callable[P, R]) -> Callable[P, R]
+def make_path(component: Any, asset: str) -> Traversable: ...
+def make_path_nodes(target: Node, component: Any) -> Node: ...
+def render_path_nodes(tree: Node, target: PurePosixPath, strategy: RenderStrategy | None = None) -> Node: ...
+def path_nodes(func_or_method: Callable[P, R]) -> Callable[P, R]: ...
 ```
 
 ### Error Handling

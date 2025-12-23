@@ -19,8 +19,8 @@ Integration:
     # Returns: Traversable instance for mysite/components/heading/static/styles.css
 
     # Use package path syntax for package resources
-    pkg_path = make_path(Heading, "mypackage:static/styles.css")
-    # Returns: Traversable instance for mypackage's static/styles.css resource
+    pkg_path = make_path(Heading, "mysite:static/app.js")
+    # Returns: Traversable instance for mysite's static/app.js resource
 """
 
 from functools import lru_cache
@@ -43,7 +43,7 @@ def _detect_path_type(asset: str) -> Literal["package", "relative"]:
         "package" if the path contains a colon, "relative" otherwise
 
     Examples:
-        >>> _detect_path_type("mypackage:static/styles.css")
+        >>> _detect_path_type("mysite:static/app.js")
         'package'
         >>> _detect_path_type("static/styles.css")
         'relative'
@@ -97,10 +97,10 @@ def _parse_package_path(asset: str) -> tuple[str, str]:
         Tuple of (package_name, resource_path)
 
     Examples:
-        >>> _parse_package_path("mypackage:static/styles.css")
-        ('mypackage', 'static/styles.css')
-        >>> _parse_package_path("my.package:images/logo.png")
-        ('my.package', 'images/logo.png')
+        >>> _parse_package_path("mysite:static/app.js")
+        ('mysite', 'static/app.js')
+        >>> _parse_package_path("mysite.components.heading:static/styles.css")
+        ('mysite.components.heading', 'static/styles.css')
         >>> _parse_package_path("pkg:sub:file.txt")
         ('pkg', 'sub:file.txt')
     """
@@ -128,7 +128,6 @@ def _get_module_files(module_name: str) -> Traversable:
 
     Examples:
         >>> root = _get_module_files("mysite.components.heading")
-        >>> # Subsequent calls return cached result
         >>> root2 = _get_module_files("mysite.components.heading")
         >>> root is root2
         True
@@ -143,7 +142,7 @@ def _resolve_package_path(package_name: str, resource_path: str) -> Traversable:
     then navigates to the specific resource using the / operator.
 
     Args:
-        package_name: The Python package name (e.g., "mypackage" or "my.package")
+        package_name: The Python package name (e.g., "mysite" or "mysite.components.heading")
         resource_path: The resource path within the package (e.g., "static/styles.css")
 
     Returns:
@@ -154,7 +153,7 @@ def _resolve_package_path(package_name: str, resource_path: str) -> Traversable:
         ImportError: If there's an issue importing the package
 
     Examples:
-        >>> traversable = _resolve_package_path("mypackage", "static/styles.css")
+        >>> traversable = _resolve_package_path("mysite.components.heading", "static/styles.css")
         >>> traversable.is_file()
         True
     """
@@ -175,7 +174,7 @@ def make_path(component: Any, asset: str) -> Traversable:
     """Create path to component asset as a Traversable instance.
 
     Supports two path formats:
-    1. Package paths: "package:resource/path" (e.g., "mypackage:static/styles.css")
+    1. Package paths: "package:resource/path" (e.g., "mysite:static/app.js")
        - Resolves using importlib.resources.files() to access package resources
        - Works with any installed package
 
@@ -197,7 +196,7 @@ def make_path(component: Any, asset: str) -> Traversable:
         >>> css_path.is_file()
         True
         >>> # Get path from a package (package path)
-        >>> pkg_path = make_path(Heading, "mypackage:static/styles.css")
+        >>> pkg_path = make_path(Heading, "mysite:static/app.js")
         >>> pkg_path.is_file()
         True
 

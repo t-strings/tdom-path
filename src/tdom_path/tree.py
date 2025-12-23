@@ -11,7 +11,7 @@ from importlib.resources.abc import Traversable
 # Web paths must always use forward slashes (/), never backslashes (\)
 # PurePosixPath guarantees POSIX-style paths regardless of OS
 from pathlib import PurePosixPath
-from typing import Any, ParamSpec, Protocol, TypeGuard
+from typing import Any, Protocol, TypeGuard, ParamSpec
 
 from tdom import Element, Fragment, Node
 from tdom_path.webpath import make_path, _normalize_module_name
@@ -30,19 +30,19 @@ class AssetReference:
         module_path: PurePosixPath representing the destination path in build output
 
     Examples:
-        >>> from pathlib import PurePosixPath
+        >>> from pathlib import Path, PurePosixPath
         >>> from tdom_path.webpath import make_path
         >>> from mysite.components.heading import Heading
-        >>>
         >>> # Create asset reference
         >>> source = make_path(Heading, "static/styles.css")
         >>> module_path = PurePosixPath("mysite/components/heading/static/styles.css")
         >>> ref = AssetReference(source=source, module_path=module_path)
         >>>
         >>> # Use in build tool to copy asset
+        >>> build_dir = Path("dist")
         >>> content = ref.source.read_bytes()
         >>> dest_path = build_dir / ref.module_path
-        >>> dest_path.write_bytes(content)
+        >>> # dest_path.write_bytes(content)
     """
 
     source: Traversable
@@ -98,7 +98,6 @@ class TraversableElement(Element):
         >>> from importlib.resources.abc import Traversable
         >>> from tdom_path.webpath import make_path
         >>> from mysite.components.heading import Heading
-        >>>
         >>> # Create element with Traversable href
         >>> path = make_path(Heading, "static/styles.css")
         >>> elem = TraversableElement(
@@ -108,8 +107,8 @@ class TraversableElement(Element):
         ... )
         >>>
         >>> # Renders to HTML with path auto-converted
-        >>> str(elem)
-        '<link rel="stylesheet" href="mysite/components/heading/static/styles.css" />'
+        >>> str(elem)[-47:]
+        'mysite/components/heading/static/styles.css" />'
     """
 
     attrs: dict[str, str | Traversable | _TraversableWithPath | None]
@@ -149,14 +148,16 @@ def _validate_asset_exists(
     Examples:
         >>> from tdom_path.webpath import make_path
         >>> from mysite.components.heading import Heading
-        >>>
         >>> # Validate existing asset
         >>> asset_path = make_path(Heading, "static/styles.css")
-        >>> _validate_asset_exists(asset_path, Heading, "href")  # Passes
+        >>> _validate_asset_exists(asset_path, Heading, "href")
         >>>
-        >>> # Validate missing asset
+        >>> # Validate missing asset raises FileNotFoundError
         >>> missing_path = make_path(Heading, "static/missing.css")
-        >>> _validate_asset_exists(missing_path, Heading, "href")  # Raises FileNotFoundError
+        >>> try:
+        ...     _validate_asset_exists(missing_path, Heading, "href")
+        ... except FileNotFoundError as exc:
+        ...     assert "missing.css" in str(exc)
 
     TODO: Consider future validation options:
     - Collect all missing assets and report at end (batch mode)
@@ -220,6 +221,7 @@ def _walk_tree(node: Node, transform_fn: Callable[[Node], Node]) -> Node:
         >>>
         >>> tree = Element(tag="div", attrs={}, children=[Text("Hello")])
         >>> result = _walk_tree(tree, add_data_attr)
+        >>> assert isinstance(result, Element)
         >>> result.attrs["data-visited"]
         'true'
     """
@@ -343,17 +345,12 @@ def make_path_nodes(target: Node, component: Any) -> Node:
     Examples:
         >>> from tdom import html
         >>> from mysite.components.heading import Heading
-        >>>
-        >>> # Original tree with string href
         >>> tree = html(t'''
         ...     <head>
         ...         <link rel="stylesheet" href="static/styles.css">
         ...     </head>
         ... ''')
-        >>>
-        >>> # Transform to use Traversable
         >>> new_tree = make_path_nodes(tree, Heading)
-        >>> # new_tree now has Traversable in link's href
     """
 
     def transform(node: Node) -> Node:
@@ -391,7 +388,6 @@ class RenderStrategy(Protocol):
         >>> from importlib.resources.abc import Traversable
         >>> from tdom_path.webpath import make_path
         >>> from mysite.components.heading import Heading
-        >>>
         >>> # Use default relative path strategy
         >>> strategy = RelativePathStrategy()
         >>> source = make_path(Heading, "static/styles.css")
@@ -400,9 +396,11 @@ class RenderStrategy(Protocol):
         >>> # Returns relative path from pages/about.html to static/styles.css
         >>>
         >>> # Custom strategy with site prefix
-        >>> prefixed_strategy = RelativePathStrategy(site_prefix="mysite/static")
-        >>> path_str = prefixed_strategy.calculate_path(source, target)
-        >>> # Returns path prefixed with "mysite/static"
+        >>> prefixed_strategy = RelativePathStrategy(
+        ...     site_prefix=PurePosixPath("mysite/static")
+        ... )
+        >>> prefixed_strategy.calculate_path(source, target)
+        'mysite/static/mysite/components/heading/static/styles.css'
     """
 
     def calculate_path(self, source: Traversable, target: PurePosixPath) -> str:
@@ -443,30 +441,24 @@ class RelativePathStrategy:
         >>> from pathlib import PurePosixPath
         >>> from tdom_path.webpath import make_path
         >>> from mysite.components.heading import Heading
-        >>>
-        >>> # Basic relative path calculation
         >>> strategy = RelativePathStrategy()
         >>> source = make_path(Heading, "static/styles.css")
         >>> target = PurePosixPath("index.html")
         >>> strategy.calculate_path(source, target)
-        'static/styles.css'
-        >>>
-        >>> # With site prefix for subdirectory deployment
+        'mysite/components/heading/static/styles.css'
         >>> strategy = RelativePathStrategy(site_prefix=PurePosixPath("mysite/static"))
         >>> strategy.calculate_path(source, target)
-        'mysite/static/static/styles.css'
-        >>>
-        >>> # Cross-directory navigation
+        'mysite/static/mysite/components/heading/static/styles.css'
         >>> target = PurePosixPath("pages/about.html")
         >>> strategy.calculate_path(source, target)
-        '../static/styles.css'
+        'mysite/static/mysite/components/heading/static/styles.css'
     """
 
     site_prefix: PurePosixPath | None = None
     collected_assets: set[AssetReference] = field(default_factory=set)
 
     def calculate_path(self, source: Traversable, target: PurePosixPath) -> str:
-        """Calculate relative path from target to source.
+        """Calculate the relative path from target to source.
 
         Both source (Traversable) and target (PurePosixPath) represent paths
         to be used for web assets. This method calculates the relative path
@@ -481,17 +473,16 @@ class RelativePathStrategy:
             Relative path string from target to source, with optional prefix
 
         Examples:
-            >>> # Same directory
-            >>> source = make_path(Heading, "styles.css")  # Traversable
-            >>> target = PurePosixPath("mysite/components/heading/index.html")
-            >>> strategy.calculate_path(source, target)
-            'styles.css'
-            >>>
-            >>> # Parent directory navigation
-            >>> source = make_path(Heading, "static/styles.css")  # Traversable
-            >>> target = PurePosixPath("mysite/pages/about.html")
-            >>> strategy.calculate_path(source, target)
-            '../../components/heading/static/styles.css'
+        >>> from mysite.components.heading import Heading
+        >>> strategy = RelativePathStrategy()
+        >>> this_source = make_path(Heading, "styles.css")
+        >>> this_target = PurePosixPath("mysite/components/heading/index.html")
+        >>> strategy.calculate_path(this_source, this_target)
+        'styles.css'
+        >>> this_source = make_path(Heading, "static/styles.css")
+        >>> this_target = PurePosixPath("mysite/pages/about.html")
+        >>> strategy.calculate_path(this_source, this_target)
+        '../components/heading/static/styles.css'
         """
         # Convert to PurePosixPath for calculation
         # If it's _TraversableWithPath, extract the module_path directly
@@ -638,7 +629,6 @@ def render_path_nodes(
         >>> from tdom_path import make_path_nodes, render_path_nodes
         >>> from tdom_path.tree import RelativePathStrategy
         >>> from mysite.components.heading import Heading
-        >>>
         >>> # Step 1: Create tree with TraversableElement nodes
         >>> tree = html(t'''
         ...     <head>
@@ -653,9 +643,10 @@ def render_path_nodes(
         >>> # Link now has href="../../components/heading/static/styles.css"
         >>>
         >>> # With custom strategy (site prefix)
-        >>> strategy = RelativePathStrategy(site_prefix=PurePosixPath("mysite/static"))
-        >>> rendered = render_path_nodes(path_tree, target, strategy=strategy)
-        >>> # Link now has href="mysite/static/mysite/components/heading/static/styles.css"
+        >>> this_strategy = RelativePathStrategy(site_prefix=PurePosixPath("mysite/static"))
+        >>> this_rendered = render_path_nodes(path_tree, target, strategy=this_strategy)
+        >>> this_rendered.children[1].children[1].attrs["href"]
+        'mysite/static/mysite/components/heading/static/styles.css'
     """
     # Default to RelativePathStrategy if no strategy provided
     if strategy is None:
@@ -665,7 +656,7 @@ def render_path_nodes(
     return _walk_tree(tree, lambda node: _render_transform_node(node, target, strategy))
 
 
-def path_nodes(
+def path_nodes[**P](
     func_or_method: Callable[P, R],
 ) -> Callable[P, R]:
     """Decorator to automatically apply make_path_nodes to component output.

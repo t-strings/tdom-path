@@ -1,5 +1,6 @@
-# Requires: just, uv, Python 3.14t (free-threaded build)
+# Requires: just, uv, Python 3.14.2 (non-free-threaded build)
 # All tasks use uv to ensure isolated, reproducible runs.
+# NOTE: Using non-free-threaded due to Python 3.14 doctest recursion bug (see conftest.py)
 
 # Default recipe shows help
 default:
@@ -80,7 +81,7 @@ clean:
 
 # Run all quality checks with fail-fast behavior
 ci-checks:
-    just install && just lint && just fmt-check && just typecheck && just test-parallel
+    just install && just lint && just fmt-check && just typecheck && just test
 
 # Run all checks + free-threading safety tests
 ci-checks-ft:
@@ -108,6 +109,19 @@ disable-pre-push:
 # Run slow tests (marked with @pytest.mark.slow)
 test-slow *ARGS:
     uv run pytest -m slow {{ ARGS }}
+
+# Run doctest examples via Sybil integration with pytest
+# WARNING: Python 3.14 has recursion bug in error formatting (see conftest.py)
+test-doctest *ARGS:
+    uv run pytest src/ {{ ARGS }}
+
+# Run doctest examples in docs/ and README.md
+test-docs *ARGS:
+    uv run pytest docs/ README.md {{ ARGS }}
+
+# Run all doctests (src + docs + README)
+test-all-doctests *ARGS:
+    uv run pytest src/ docs/ README.md {{ ARGS }}
 
 # Run performance benchmark
 benchmark:

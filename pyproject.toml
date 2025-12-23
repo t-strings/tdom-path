@@ -24,13 +24,14 @@ dev = [
     "sphinx>=8.0.0",
     "sphinx-autobuild>=2024.9.3",
     "sphinxcontrib-mermaid>=1.2.3",
+    "sybil[pytest]>=8.0.0",
     "ty>=0.0.4",
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "src", "docs"]
 python_files = ["test_*.py"]
-addopts = "-p no:doctest -m \"not slow\""
+addopts = "-p no:doctest -p no:freethreaded -m \"not slow\""
 pythonpath = ["examples"]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",

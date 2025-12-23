@@ -18,18 +18,16 @@ tdom-path provides a three-phase pipeline for resolving component assets:
 
 **Package Paths** (format: `package:resource/path`):
 ```python
-from tdom_path import make_path
-
-# Reference asset from installed package
-css_path = make_path(None, "bootstrap:dist/css/bootstrap.css")
+>>> from tdom_path import make_path
+>>> # Reference asset from installed package
+>>> css_path = make_path(None, "bootstrap:dist/css/bootstrap.css")  # doctest: +SKIP
 ```
 
 **Relative Paths** (format: `resource/path`, `./resource/path`, or `../resource/path`):
 ```python
-from mysite.components.heading import Heading
-
-# Reference asset relative to component's module
-css_path = make_path(Heading, "static/styles.css")
+>>> from mysite.components.heading import Heading
+>>> # Reference asset relative to component's module
+>>> css_path = make_path(Heading, "static/styles.css")
 ```
 
 Path type detection is automatic based on the presence of a colon (`:`) character.
@@ -39,19 +37,17 @@ Path type detection is automatic based on the presence of a colon (`:`) characte
 `make_path_nodes()` walks a VDOM tree and automatically transforms `<link href="...">` and `<script src="...">` elements to use Traversable instances:
 
 ```python
-from tdom import Element
-from tdom_path import make_path_nodes
-from mysite.components.heading import Heading
-
-# Original tree with string asset references
-tree = Element("head", children=[
-    Element("link", {"rel": "stylesheet", "href": "static/styles.css"}),
-    Element("script", {"src": "static/script.js"}),
-])
-
-# Transform to use Traversable
-transformed = make_path_nodes(tree, Heading)
-# Link href and script src are now Traversable instances
+>>> from tdom import Element
+>>> from tdom_path import make_path_nodes
+>>> from mysite.components.heading import Heading
+>>> # Original tree with string asset references
+>>> tree = Element("head", children=[
+...     Element("link", {"rel": "stylesheet", "href": "static/styles.css"}),
+...     Element("script", {"src": "static/script.js"}),
+... ])
+>>> # Transform to use Traversable
+>>> transformed = make_path_nodes(tree, Heading)
+>>> # Link href and script src are now Traversable instances
 ```
 
 External URLs (http://, https://), special schemes (mailto:, tel:), and anchor-only links (#...) are left unchanged.
@@ -61,18 +57,16 @@ External URLs (http://, https://), special schemes (mailto:, tel:), and anchor-o
 `render_path_nodes()` converts Traversable instances in a tree to relative path strings suitable for HTML output:
 
 ```python
-from pathlib import PurePosixPath
-from tdom_path import render_path_nodes
-from tdom_path.tree import RelativePathStrategy
-
-# Render for a specific target page
-target = PurePosixPath("mysite/pages/about.html")
-rendered = render_path_nodes(transformed, target)
-# Paths are now relative strings: "../components/heading/static/styles.css"
-
-# With site prefix for subdirectory deployment
-strategy = RelativePathStrategy(site_prefix=PurePosixPath("mysite/static"))
-rendered = render_path_nodes(transformed, target, strategy=strategy)
+>>> from pathlib import PurePosixPath
+>>> from tdom_path import render_path_nodes
+>>> from tdom_path.tree import RelativePathStrategy
+>>> # Render for a specific target page
+>>> target = PurePosixPath("mysite/pages/about.html")
+>>> rendered = render_path_nodes(transformed, target)
+>>> # Paths are now relative strings: "../components/heading/static/styles.css"
+>>> # With site prefix for subdirectory deployment
+>>> strategy = RelativePathStrategy(site_prefix=PurePosixPath("mysite/static"))
+>>> rendered = render_path_nodes(transformed, target, strategy=strategy)
 ```
 
 ## Path Rewriting Lifecycle
@@ -173,47 +167,43 @@ flowchart TD
 Here's a full example showing all three phases:
 
 ```python
-from pathlib import PurePosixPath
-from tdom import Element
-from tdom_path import make_path_nodes, render_path_nodes
-from tdom_path.tree import RelativePathStrategy
-from mysite.components.heading import Heading
-
-# Define component with mixed package and relative paths
-class Heading:
-    def __html__(self):
-        return Element("div", children=[
-            Element("head", children=[
-                # Package path - references bootstrap package
-                Element("link", {
-                    "rel": "stylesheet",
-                    "href": "bootstrap:dist/css/bootstrap.css"
-                }),
-                # Relative path - references local component asset
-                Element("link", {
-                    "rel": "stylesheet",
-                    "href": "static/heading.css"
-                }),
-                Element("script", {"src": "static/heading.js"}),
-            ]),
-            Element("h1", children=["Welcome"]),
-        ])
-
-# Phase 1 & 2: Transform string paths to Traversable
-heading = Heading()
-tree = heading.__html__()
-path_tree = make_path_nodes(tree, heading)
-# Bootstrap link href: Traversable for bootstrap package
-# Heading link href: Traversable for component's static/heading.css
-# Script src: Traversable for component's static/heading.js
-
-# Phase 3: Render for specific target page (relative paths)
-target = PurePosixPath("mysite/pages/about.html")
-rendered_tree = render_path_nodes(path_tree, target)
-# Paths are now relative strings calculated from target location
-
-# Convert to HTML string
-html_output = str(rendered_tree)
+>>> from pathlib import PurePosixPath
+>>> from tdom import Element
+>>> from tdom_path import make_path_nodes, render_path_nodes
+>>> from tdom_path.tree import RelativePathStrategy
+>>> from mysite.components.heading import Heading
+>>> # Define component with mixed package and relative paths
+>>> class PageHeading:
+...     def __html__(self):
+...         return Element("div", children=[
+...             Element("head", children=[
+...                 # Package path - references bootstrap package
+...                 Element("link", {
+...                     "rel": "stylesheet",
+...                     "href": "bootstrap:dist/css/bootstrap.css"
+...                 }),
+...                 # Relative path - references local component asset
+...                 Element("link", {
+...                     "rel": "stylesheet",
+...                     "href": "static/heading.css"
+...                 }),
+...                 Element("script", {"src": "static/heading.js"}),
+...             ]),
+...             Element("h1", children=["Welcome"]),
+...         ])
+>>> # Phase 1 & 2: Transform string paths to Traversable
+>>> heading = PageHeading()
+>>> tree = heading.__html__()
+>>> path_tree = make_path_nodes(tree, Heading)  # doctest: +SKIP
+>>> # Bootstrap link href: Traversable for bootstrap package
+>>> # Heading link href: Traversable for component's static/heading.css
+>>> # Script src: Traversable for component's static/heading.js
+>>> # Phase 3: Render for specific target page (relative paths)
+>>> target = PurePosixPath("mysite/pages/about.html")
+>>> rendered_tree = render_path_nodes(path_tree, target)  # doctest: +SKIP
+>>> # Paths are now relative strings calculated from target location
+>>> # Convert to HTML string
+>>> html_output = str(rendered_tree)  # doctest: +SKIP
 ```
 
 ## Decorator Pattern
@@ -221,16 +211,13 @@ html_output = str(rendered_tree)
 For convenience, use the `@path_nodes` decorator to automatically apply `make_path_nodes()`:
 
 ```python
-from tdom_path import path_nodes
-
-class Heading:
-    @path_nodes
-    def __html__(self):
-        return Element("link", {"href": "static/styles.css"})
-
-# Decorator automatically calls make_path_nodes(result, self)
-heading = Heading()
-tree = heading.__html__()  # Already has Traversable instances
+>>> from tdom_path import path_nodes  # doctest: +SKIP
+>>> class MyHeading:  # doctest: +SKIP
+...     @path_nodes  # doctest: +SKIP
+...     def __html__(self):  # doctest: +SKIP
+...         return Element("link", {"href": "static/styles.css"})  # doctest: +SKIP
+>>> heading = MyHeading()  # doctest: +SKIP
+>>> tree = heading.__html__()  # Already has Traversable instances  # doctest: +SKIP
 ```
 
 ## Key Design Principles
@@ -247,14 +234,14 @@ tree = heading.__html__()  # Already has Traversable instances
 All assets are validated automatically during tree transformation:
 
 ```python
-# If asset doesn't exist, transformation fails immediately
-try:
-    tree = Element("link", {"href": "static/missing.css"})
-    make_path_nodes(tree, Heading)
-except FileNotFoundError as e:
-    # Clear error with component and attribute context
-    print(e)
-    # "Asset not found: 'missing.css' (attribute: 'href', component: 'Heading'...)"
+>>> # If asset doesn't exist, transformation fails immediately
+>>> try:
+...     tree = Element("link", {"href": "static/missing.css"})
+...     make_path_nodes(tree, Heading)
+... except FileNotFoundError as e:
+...     # Clear error with component and attribute context
+...     assert "missing.css" in str(e)
+...     # "Asset not found: 'missing.css' (attribute: 'href', component: 'Heading'...)"
 ```
 
 Validation ensures build-time detection of broken asset references, preventing runtime errors in production.
