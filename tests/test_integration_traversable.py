@@ -4,15 +4,16 @@ Focuses on package path-specific functionality (package:path syntax).
 General integration tests are in test_tree.py.
 """
 
-import pytest
-from pathlib import PurePosixPath
 from importlib.resources.abc import Traversable
+from pathlib import PurePosixPath
 
-from tdom import html, Element
-from mysite.components.heading import Heading
-from tdom_path import make_path, make_path_nodes, render_path_nodes
-from tdom_path.tree import TraversableElement, _TraversableWithPath
+import pytest
 from aria_testing import get_by_tag_name
+from mysite.components.heading import Heading
+from tdom import html, Element
+
+from tdom_path import make_path_nodes, render_path_nodes
+from tdom_path.tree import TraversableElement, _TraversableWithPath
 
 
 # Helper to check if value is traversable or wrapped traversable

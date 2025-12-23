@@ -105,18 +105,14 @@ disable-pre-push:
     @chmod -x .git/hooks/pre-push 2>/dev/null || true
     @echo "Pre-push hook disabled. Use 'just enable-pre-push' to re-enable."
 
-# Run performance benchmark
-benchmark:
-    uv run python -m aria_testing.profiling.benchmark
-
 # Run slow tests (marked with @pytest.mark.slow)
 test-slow *ARGS:
     uv run pytest -m slow {{ ARGS }}
 
-# Profile query operations
-profile-queries:
-    uv run python -m aria_testing.profiling.profiler_queries
+# Run performance benchmark
+benchmark:
+    uv run python -m tdom_path.profiling.benchmark
 
-# Profile test suite
-profile-tests:
-    uv run python -m aria_testing.profiling.profiler_tests
+# Profile tree transformation operations
+profile:
+    uv run python -m tdom_path.profiling.profiler

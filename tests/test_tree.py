@@ -8,12 +8,13 @@ Focus on core functionality:
 - Decorator support for function and class components
 """
 
-import pytest
-from pathlib import PurePosixPath
 from importlib.resources.abc import Traversable
+from pathlib import PurePosixPath
 
+import pytest
 from aria_testing import get_by_tag_name, get_all_by_tag_name
 from tdom import Element, Fragment, Text, Comment, html
+
 from examples.mysite.components.heading import Heading
 from tdom_path import make_path_nodes, path_nodes
 from tdom_path.tree import (
@@ -1349,7 +1350,6 @@ def test_validate_asset_exists_error_includes_path_string():
 
 def test_traversable_element_accepts_traversable_attributes():
     """Test TraversableElement accepts Traversable attribute values (not just PurePosixPath)."""
-    from importlib.resources.abc import Traversable
 
     # Get a Traversable instance from make_path
     traversable = make_path(Heading, "static/styles.css")
@@ -1368,7 +1368,6 @@ def test_traversable_element_accepts_traversable_attributes():
 
 def test_transform_asset_element_returns_traversable_attributes():
     """Test _transform_asset_element creates TraversableElement with Traversable values."""
-    from importlib.resources.abc import Traversable
 
     elem = Element(
         tag="link",
@@ -1386,7 +1385,6 @@ def test_transform_asset_element_returns_traversable_attributes():
 
 def test_render_transform_node_handles_traversable_values():
     """Test _render_transform_node converts Traversable attributes to strings."""
-    from importlib.resources.abc import Traversable
 
     traversable = make_path(Heading, "static/styles.css")
     assert _is_traversable_or_wrapped(traversable)
@@ -1409,7 +1407,6 @@ def test_render_transform_node_handles_traversable_values():
 
 def test_render_path_nodes_with_traversable_attributes():
     """Test render_path_nodes() handles Traversable attributes throughout the tree."""
-    from importlib.resources.abc import Traversable
 
     # Create tree with Traversable attributes
     css_path = make_path(Heading, "static/styles.css")
@@ -1455,7 +1452,6 @@ def test_render_path_nodes_with_traversable_attributes():
 
 def test_relative_path_strategy_accepts_traversable_source():
     """Test RelativePathStrategy.calculate_path() works with Traversable source."""
-    from importlib.resources.abc import Traversable
 
     strategy = RelativePathStrategy()
 
@@ -1474,7 +1470,6 @@ def test_relative_path_strategy_accepts_traversable_source():
 
 def test_package_path_returns_traversable():
     """Test package paths return Traversable instances (not PurePosixPath)."""
-    from importlib.resources.abc import Traversable
 
     # Package path syntax
     pkg_path = make_path(None, "tests.fixtures.fake_package:static/styles.css")
@@ -1487,7 +1482,6 @@ def test_package_path_returns_traversable():
 
 def test_mixed_traversable_and_string_attributes():
     """Test TraversableElement can have mixed Traversable and string attributes."""
-    from importlib.resources.abc import Traversable
 
     traversable = make_path(Heading, "static/styles.css")
     assert _is_traversable_or_wrapped(traversable)
@@ -1512,7 +1506,6 @@ def test_mixed_traversable_and_string_attributes():
 
 def test_end_to_end_package_path_with_traversable():
     """Test end-to-end: package path -> Traversable -> rendered string."""
-    from importlib.resources.abc import Traversable
 
     # Create tree with package path
     tree = html(t"""
