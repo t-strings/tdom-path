@@ -8,13 +8,10 @@ import sys
 import time
 from pathlib import PurePosixPath
 
-# Add examples to path for Heading component
-sys.path.insert(0, "examples")
 
 from tdom import html
 
-from mysite.components.heading import Heading
-from tdom_path import make_path, make_path_nodes, render_path_nodes
+from tdom_path import make_path_nodes, render_path_nodes, make_traversable
 from tdom_path.tree import _walk_tree
 
 
@@ -101,9 +98,13 @@ def run_benchmark():
 
     _get_module_files.cache_clear()  # Clear cache for cold test
 
+    # Add examples to path for Heading component
+    sys.path.insert(0, "examples")
+    from mysite.components.heading import Heading
+
     results["make_path_cold"] = benchmark_operation(
         "make_path() - relative (COLD cache)",
-        lambda: make_path(Heading, "static/styles.css"),
+        lambda: make_traversable(Heading, "static/styles.css"),
         iterations=100,
         warmup=False,  # No warmup for cold cache test
     )
@@ -112,12 +113,12 @@ def run_benchmark():
     print("\n  [Warm cache tests - simulating repeated use...]")
     results["make_path"] = benchmark_operation(
         "make_path() - relative (WARM cache)",
-        lambda: make_path(Heading, "static/styles.css"),
+        lambda: make_traversable(Heading, "static/styles.css"),
     )
 
     results["make_path_pkg"] = benchmark_operation(
         "make_path() - package path (WARM)",
-        lambda: make_path(None, "tests.fixtures.fake_package:static/styles.css"),
+        lambda: make_traversable(None, "tests.fixtures.fake_package:static/styles.css"),
     )
 
     # SSG Simulation: Transform same tree for multiple pages

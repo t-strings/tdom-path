@@ -1226,7 +1226,9 @@ def test_validate_asset_exists_with_missing_asset():
     import pytest
 
     # Test with non-existent asset from fake_package
-    asset_path = make_traversable(None, "tests.fixtures.fake_package:static/nonexistent.css")
+    asset_path = make_traversable(
+        None, "tests.fixtures.fake_package:static/nonexistent.css"
+    )
     component = Heading
     attr_name = "href"
 
@@ -1335,7 +1337,9 @@ def test_validate_asset_exists_error_includes_path_string():
     import pytest
 
     # Test with missing asset
-    asset_path = make_traversable(None, "tests.fixtures.fake_package:static/notfound.css")
+    asset_path = make_traversable(
+        None, "tests.fixtures.fake_package:static/notfound.css"
+    )
 
     # Should include path information in error
     with pytest.raises(FileNotFoundError) as exc_info:
